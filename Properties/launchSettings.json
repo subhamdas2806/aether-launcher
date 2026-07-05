@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "GameShelf (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "GameShelf (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

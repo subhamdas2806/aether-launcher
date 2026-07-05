@@ -1,0 +1,22 @@
+# Build outputs
+[Db]ebug/
+[Rr]elease/
+bin/
+obj/
+
+# Visual Studio / VS Code
+.vs/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# OS files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Local logs / crashes
+launch_log.txt
+crash.txt
