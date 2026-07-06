@@ -6,7 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.UI.Dispatching;
 
-namespace Aether;
+namespace GameShelf;
 
 public class LaunchService
 {

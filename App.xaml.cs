@@ -14,7 +14,7 @@ using Microsoft.UI.Xaml.Shapes;
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
 
-namespace Aether;
+namespace GameShelf;
 
 /// <summary>
 /// Provides application-specific behavior to supplement the default Application class.
@@ -29,7 +29,21 @@ public partial class App : Application
     /// </summary>
     public App()
     {
-        InitializeComponent();
+        try
+        {
+            InitializeComponent();
+        }
+        catch (Exception ex)
+        {
+            try
+            {
+                var dir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Aether");
+                if (!System.IO.Directory.Exists(dir)) System.IO.Directory.CreateDirectory(dir);
+                System.IO.File.WriteAllText(System.IO.Path.Combine(dir, "crash_app_constructor.txt"), ex.ToString());
+            }
+            catch { }
+            throw;
+        }
     }
 
     /// <summary>
@@ -47,7 +61,7 @@ public partial class App : Application
         {
             try
             {
-                var dir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GameShelf");
+                var dir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Aether");
                 if (!System.IO.Directory.Exists(dir)) System.IO.Directory.CreateDirectory(dir);
                 System.IO.File.WriteAllText(System.IO.Path.Combine(dir, "crash.txt"), ex.ToString());
             }

@@ -3,7 +3,7 @@ using Microsoft.UI.Xaml;
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
 
-namespace Aether;
+namespace GameShelf;
 
 /// <summary>
 /// The application window. This hosts a Frame that displays pages. Add your
@@ -14,14 +14,28 @@ public sealed partial class MainWindow : Window
 {
     public MainWindow()
     {
-        InitializeComponent();
+        try
+        {
+            InitializeComponent();
 
-        ExtendsContentIntoTitleBar = true;
-        SetTitleBar(AppTitleBar);
+            ExtendsContentIntoTitleBar = true;
+            SetTitleBar(AppTitleBar);
 
-        AppWindow.SetIcon("Assets/AppIcon.ico");
+            AppWindow.SetIcon("Assets/AppIcon.ico");
 
-        // Navigate the root frame to the main page on startup.
-        RootFrame.Navigate(typeof(MainPage));
+            // Navigate the root frame to the main page on startup.
+            RootFrame.Navigate(typeof(MainPage));
+        }
+        catch (Exception ex)
+        {
+            try
+            {
+                var dir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Aether");
+                if (!System.IO.Directory.Exists(dir)) System.IO.Directory.CreateDirectory(dir);
+                System.IO.File.WriteAllText(System.IO.Path.Combine(dir, "crash_mainwindow_constructor.txt"), ex.ToString());
+            }
+            catch { }
+            throw;
+        }
     }
 }

@@ -11,7 +11,7 @@ using Microsoft.UI.Xaml.Media;
 using Windows.Storage.Pickers;
 using Microsoft.UI.Text;
 
-namespace Aether;
+namespace GameShelf;
 
 public sealed partial class MainPage : Page
 {

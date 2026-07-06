@@ -5,7 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 
-namespace Aether;
+namespace GameShelf;
 
 public class Game : INotifyPropertyChanged
 {

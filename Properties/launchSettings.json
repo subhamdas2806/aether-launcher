@@ -1,9 +1,9 @@
 {
   "profiles": {
-    "GameShelf (Package)": {
+    "Aether (Package)": {
       "commandName": "MsixPackage"
     },
-    "GameShelf (Unpackaged)": {
+    "Aether (Unpackaged)": {
       "commandName": "Project"
     }
   }

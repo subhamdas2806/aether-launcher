@@ -5,7 +5,7 @@ using System.Linq;
 using Microsoft.Data.Sqlite;
 using Dapper;
 
-namespace Aether;
+namespace GameShelf;
 
 public class DatabaseService
 {
