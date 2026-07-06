@@ -17,12 +17,20 @@
                 <TextBlock Text="Launch and track playtime of standalone and custom builds" Style="{ThemeResource BodyTextBlockStyle}" Foreground="Gray" />
             </StackPanel>
             
-            <Button Grid.Column="1" Click="AddGame_Click" Style="{ThemeResource AccentButtonStyle}" VerticalAlignment="Center" Padding="16,8,16,8" CornerRadius="4">
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <FontIcon Glyph="&#xE109;" FontSize="14" />
-                    <TextBlock Text="Add Game" FontWeight="SemiBold" />
-                </StackPanel>
-            </Button>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <Button Click="Settings_Click" Style="{ThemeResource DefaultButtonStyle}" Padding="16,8,16,8" CornerRadius="4">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE713;" FontSize="14" />
+                        <TextBlock Text="Settings" FontWeight="SemiBold" />
+                    </StackPanel>
+                </Button>
+                <Button Click="AddGame_Click" Style="{ThemeResource AccentButtonStyle}" Padding="16,8,16,8" CornerRadius="4">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE109;" FontSize="14" />
+                        <TextBlock Text="Add Game" FontWeight="SemiBold" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
         </Grid>
 
         <!-- Filter / Search bar -->
@@ -90,11 +98,13 @@
                                         <VariableSizedWrapGrid Orientation="Horizontal" MaximumRowsOrColumns="-1" />
                                     </ItemsPanelTemplate>
                                 </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
                                     <DataTemplate>
                                         <Border Background="#373E4D" CornerRadius="4" Padding="6,2,6,2" Margin="0,0,4,4">
                                             <TextBlock Text="{Binding}" FontSize="10" Foreground="#E2E8F0" />
                                         </Border>
                                     </DataTemplate>
+                                </ItemsControl.ItemTemplate>
                             </ItemsControl>
                         </StackPanel>
 

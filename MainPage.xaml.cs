@@ -10,6 +10,9 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Windows.Storage.Pickers;
 using Microsoft.UI.Text;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Text.Json;
 
 namespace GameShelf;
 
@@ -206,83 +209,171 @@ public sealed partial class MainPage : Page
         }
     }
 
-    private async void AddGame_Click(object sender, RoutedEventArgs e)
+    private async void Settings_Click(object sender, RoutedEventArgs e)
     {
+        var config = ConfigService.LoadConfig();
+
         var dialog = new ContentDialog
         {
-            Title = "Add Game",
-            PrimaryButtonText = "Add",
+            Title = "Settings",
+            PrimaryButtonText = "Save",
             CloseButtonText = "Cancel",
             DefaultButton = ContentDialogButton.Primary,
-            IsPrimaryButtonEnabled = false,
             XamlRoot = this.XamlRoot
         };
 
         var stack = new StackPanel { Spacing = 12, Width = 380 };
 
-        var titleBox = new TextBox { Header = "Game Title" };
-        var tagsBox = new TextBox { Header = "Tags (comma-separated)" };
+        var apiKeyBox = new PasswordBox
+        {
+            Header = "SteamGridDB API Key",
+            Password = config.SteamGridDbApiKey,
+            PasswordChar = "*"
+        };
 
-        var folderLabel = new TextBlock { Text = "Game Folder:", FontWeight = FontWeights.SemiBold };
-        var folderPathText = new TextBlock { Text = "No folder selected", Foreground = new SolidColorBrush(Microsoft.UI.Colors.Gray), TextWrapping = TextWrapping.Wrap };
-        var selectFolderBtn = new Button { Content = "Select Folder..." };
+        var linkButton = new HyperlinkButton
+        {
+            Content = "Get your API Key from SteamGridDB",
+            NavigateUri = new Uri("https://www.steamgriddb.com/profile/api"),
+            Margin = new Thickness(0, 4, 0, 0)
+        };
 
-        var exeLabel = new TextBlock { Text = "Select Executable:", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 8, 0, 0) };
-        var exeCombo = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch, IsEnabled = false };
-
-        stack.Children.Add(titleBox);
-        stack.Children.Add(tagsBox);
-        stack.Children.Add(folderLabel);
-        stack.Children.Add(folderPathText);
-        stack.Children.Add(selectFolderBtn);
-        stack.Children.Add(exeLabel);
-        stack.Children.Add(exeCombo);
+        stack.Children.Add(apiKeyBox);
+        stack.Children.Add(linkButton);
 
         dialog.Content = stack;
 
-        string selectedFolder = "";
-        string selectedRelativeExe = "";
-
-        selectFolderBtn.Click += async (s, args) =>
+        var result = await dialog.ShowAsync();
+        if (result == ContentDialogResult.Primary)
         {
-            var folderPicker = new FolderPicker();
-            folderPicker.FileTypeFilter.Add("*");
-            
-            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.StartupWindow);
-            WinRT.Interop.InitializeWithWindow.Initialize(folderPicker, hwnd);
-            
-            var folder = await folderPicker.PickSingleFolderAsync();
-            if (folder != null)
+            config.SteamGridDbApiKey = apiKeyBox.Password.Trim();
+            ConfigService.SaveConfig(config);
+        }
+    }
+
+    private async void AddGame_Click(object sender, RoutedEventArgs e)
+    {
+        var folderPicker = new FolderPicker();
+        folderPicker.FileTypeFilter.Add("*");
+        
+        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.StartupWindow);
+        WinRT.Interop.InitializeWithWindow.Initialize(folderPicker, hwnd);
+        
+        var folder = await folderPicker.PickSingleFolderAsync();
+        if (folder == null)
+        {
+            return; // Abort entirely
+        }
+        
+        string selectedFolder = folder.Path;
+        var candidates = GetExeCandidates(selectedFolder);
+        if (candidates.Count == 0)
+        {
+            var errorDialog = new ContentDialog
             {
-                selectedFolder = folder.Path;
-                folderPathText.Text = selectedFolder;
-                folderPathText.Foreground = App.Current.Resources["TextControlForeground"] as Brush;
+                Title = "No Executables Found",
+                Content = $"We could not find any executables in the folder:\n{selectedFolder}\n\nPlease select a folder containing the game executable.",
+                CloseButtonText = "OK",
+                XamlRoot = this.XamlRoot
+            };
+            await errorDialog.ShowAsync();
+            return;
+        }
 
-                if (string.IsNullOrEmpty(titleBox.Text))
-                {
-                    titleBox.Text = Path.GetFileName(selectedFolder);
-                }
+        var dialog = new ContentDialog
+        {
+            Title = "Add Game Details",
+            PrimaryButtonText = "Add",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Primary,
+            IsPrimaryButtonEnabled = candidates.Count == 1,
+            XamlRoot = this.XamlRoot
+        };
 
-                var candidates = GetExeCandidates(selectedFolder);
-                if (candidates.Count > 0)
-                {
-                    var relativePaths = candidates.Select(c => Path.GetRelativePath(selectedFolder, c)).ToList();
-                    exeCombo.ItemsSource = relativePaths;
-                    exeCombo.IsEnabled = true;
-                    exeCombo.SelectedIndex = 0;
-                    selectedRelativeExe = relativePaths[0];
-                    dialog.IsPrimaryButtonEnabled = true;
-                }
-                else
-                {
-                    exeCombo.ItemsSource = null;
-                    exeCombo.IsEnabled = false;
-                    selectedRelativeExe = "";
-                    folderPathText.Text = $"{selectedFolder} (No executables found!)";
-                    folderPathText.Foreground = new SolidColorBrush(Microsoft.UI.Colors.Red);
-                    dialog.IsPrimaryButtonEnabled = false;
-                }
+        var stack = new StackPanel { Spacing = 12, Width = 380 };
+
+        var folderLabel = new TextBlock { Text = "Selected Folder:", FontWeight = FontWeights.SemiBold };
+        var folderPathText = new TextBlock { Text = selectedFolder, Foreground = App.Current.Resources["TextControlForeground"] as Brush, TextWrapping = TextWrapping.Wrap };
+
+        var titleBox = new TextBox { Header = "Game Title", Text = CleanFolderTitle(selectedFolder) };
+        
+        var fetchCoverBtn = new Button
+        {
+            Content = "Fetch Cover Art",
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Margin = new Thickness(0, 4, 0, 8)
+        };
+        var fetchCoverTooltip = new ToolTip();
+        ToolTipService.SetToolTip(fetchCoverBtn, fetchCoverTooltip);
+
+        var tagsBox = new TextBox { Header = "Tags (comma-separated)" };
+
+        var exeLabel = new TextBlock { Text = "Select Executable:", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 8, 0, 0) };
+        var exeCombo = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
+        
+        var relativePaths = candidates.Select(c => Path.GetRelativePath(selectedFolder, c)).ToList();
+        exeCombo.ItemsSource = relativePaths;
+        exeCombo.SelectedIndex = 0;
+        string selectedRelativeExe = relativePaths[0];
+
+        stack.Children.Add(folderLabel);
+        stack.Children.Add(folderPathText);
+        stack.Children.Add(titleBox);
+        stack.Children.Add(fetchCoverBtn);
+        stack.Children.Add(tagsBox);
+        stack.Children.Add(exeLabel);
+        stack.Children.Add(exeCombo);
+
+        CheckBox confirmCheck = null;
+        if (candidates.Count > 1)
+        {
+            confirmCheck = new CheckBox
+            {
+                Content = "Confirm selected executable is correct",
+                Margin = new Thickness(0, 4, 0, 0)
+            };
+            stack.Children.Add(confirmCheck);
+        }
+
+        dialog.Content = stack;
+
+        string selectedTempCoverPath = "";
+
+        var config = ConfigService.LoadConfig();
+        bool hasApiKey = !string.IsNullOrWhiteSpace(config.SteamGridDbApiKey);
+
+        Action updateFetchButtonState = () =>
+        {
+            bool hasTitle = !string.IsNullOrWhiteSpace(titleBox.Text);
+            if (!hasApiKey)
+            {
+                fetchCoverBtn.IsEnabled = false;
+                fetchCoverTooltip.Content = "Please configure your SteamGridDB API key in Settings first.";
             }
+            else if (!hasTitle)
+            {
+                fetchCoverBtn.IsEnabled = false;
+                fetchCoverTooltip.Content = "Please enter a game title first.";
+            }
+            else
+            {
+                fetchCoverBtn.IsEnabled = true;
+                fetchCoverTooltip.Content = "Fetch vertical cover art candidates from SteamGridDB.";
+            }
+        };
+
+        Action updateAddButtonState = () =>
+        {
+            bool hasTitle = !string.IsNullOrWhiteSpace(titleBox.Text);
+            bool hasExe = exeCombo.SelectedItem != null;
+            bool isConfirmed = candidates.Count == 1 || (confirmCheck != null && confirmCheck.IsChecked == true);
+            dialog.IsPrimaryButtonEnabled = hasTitle && hasExe && isConfirmed;
+        };
+
+        titleBox.TextChanged += (s, args) =>
+        {
+            updateFetchButtonState();
+            updateAddButtonState();
         };
 
         exeCombo.SelectionChanged += (s, args) =>
@@ -290,29 +381,93 @@ public sealed partial class MainPage : Page
             if (exeCombo.SelectedItem is string relativePath)
             {
                 selectedRelativeExe = relativePath;
-                dialog.IsPrimaryButtonEnabled = true;
+                if (candidates.Count > 1 && confirmCheck != null)
+                {
+                    confirmCheck.IsChecked = false;
+                }
+            }
+            updateAddButtonState();
+        };
+
+        if (confirmCheck != null)
+        {
+            confirmCheck.Checked += (s, args) => updateAddButtonState();
+            confirmCheck.Unchecked += (s, args) => updateAddButtonState();
+        }
+
+        updateFetchButtonState();
+        updateAddButtonState();
+
+        bool shouldFetchCover = false;
+        fetchCoverBtn.Click += (s, args) =>
+        {
+            shouldFetchCover = true;
+            dialog.Hide();
+        };
+
+        bool isDialogActive = true;
+        while (isDialogActive)
+        {
+            shouldFetchCover = false;
+            var result = await dialog.ShowAsync();
+
+            if (shouldFetchCover)
+            {
+                var tempCover = await FetchOrUploadCoverAsync(titleBox.Text, config.SteamGridDbApiKey);
+                if (!string.IsNullOrEmpty(tempCover))
+                {
+                    if (!string.IsNullOrEmpty(selectedTempCoverPath) && File.Exists(selectedTempCoverPath))
+                    {
+                        try { File.Delete(selectedTempCoverPath); } catch { }
+                    }
+                    selectedTempCoverPath = tempCover;
+                    fetchCoverBtn.Content = "Cover Art Selected ✓";
+                }
+            }
+            else if (result == ContentDialogResult.Primary && !string.IsNullOrEmpty(selectedFolder) && !string.IsNullOrEmpty(selectedRelativeExe))
+            {
+                var newGame = new Game
+                {
+                    Title = titleBox.Text.Trim(),
+                    Folder = selectedFolder,
+                    ExePath = selectedRelativeExe,
+                    Tags = tagsBox.Text
+                };
+
+                _dbService.InsertGame(newGame);
+
+                if (!string.IsNullOrEmpty(selectedTempCoverPath))
+                {
+                    var finalPath = Path.Combine(_dbService.CoversDirectory, $"{newGame.Id}.jpg");
+                    try
+                    {
+                        if (File.Exists(selectedTempCoverPath))
+                        {
+                            if (File.Exists(finalPath))
+                            {
+                                File.Delete(finalPath);
+                            }
+                            File.Move(selectedTempCoverPath, finalPath);
+                            newGame.CoverPath = finalPath;
+                            _dbService.UpdateGame(newGame);
+                        }
+                    }
+                    catch { }
+                }
+
+                AllGames.Add(newGame);
+                ApplyFilters();
+                RefreshTagsFilterCombo();
+                isDialogActive = false;
             }
             else
             {
-                dialog.IsPrimaryButtonEnabled = false;
+                if (!string.IsNullOrEmpty(selectedTempCoverPath) && File.Exists(selectedTempCoverPath))
+                {
+                    try { File.Delete(selectedTempCoverPath); } catch { }
+                }
+                isDialogActive = false;
             }
-        };
-
-        var result = await dialog.ShowAsync();
-        if (result == ContentDialogResult.Primary && !string.IsNullOrEmpty(selectedFolder) && !string.IsNullOrEmpty(selectedRelativeExe))
-        {
-            var newGame = new Game
-            {
-                Title = string.IsNullOrEmpty(titleBox.Text) ? Path.GetFileName(selectedFolder) : titleBox.Text,
-                Folder = selectedFolder,
-                ExePath = selectedRelativeExe,
-                Tags = tagsBox.Text
-            };
-
-            _dbService.InsertGame(newGame);
-            AllGames.Add(newGame);
-            ApplyFilters();
-            RefreshTagsFilterCombo();
         }
     }
 
@@ -338,6 +493,42 @@ public sealed partial class MainPage : Page
         var stack = new StackPanel { Spacing = 12, Width = 380 };
 
         var titleBox = new TextBox { Header = "Game Title", Text = game.Title };
+        
+        var fetchCoverBtn = new Button
+        {
+            Content = "Fetch Cover Art",
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Margin = new Thickness(0, 4, 0, 8)
+        };
+        var fetchCoverTooltip = new ToolTip();
+        ToolTipService.SetToolTip(fetchCoverBtn, fetchCoverTooltip);
+
+        var config = ConfigService.LoadConfig();
+        bool hasApiKey = !string.IsNullOrWhiteSpace(config.SteamGridDbApiKey);
+
+        Action updateFetchButtonState = () =>
+        {
+            bool hasTitle = !string.IsNullOrWhiteSpace(titleBox.Text);
+            if (!hasApiKey)
+            {
+                fetchCoverBtn.IsEnabled = false;
+                fetchCoverTooltip.Content = "Please configure your SteamGridDB API key in Settings first.";
+            }
+            else if (!hasTitle)
+            {
+                fetchCoverBtn.IsEnabled = false;
+                fetchCoverTooltip.Content = "Please enter a game title first.";
+            }
+            else
+            {
+                fetchCoverBtn.IsEnabled = true;
+                fetchCoverTooltip.Content = "Fetch vertical cover art candidates from SteamGridDB.";
+            }
+        };
+
+        titleBox.TextChanged += (s, args) => updateFetchButtonState();
+        updateFetchButtonState();
+
         var tagsBox = new TextBox { Header = "Tags (comma-separated)", Text = game.Tags };
 
         var pathLabel = new TextBlock { Text = "Path Settings", FontWeight = FontWeights.Bold, Margin = new Thickness(0, 8, 0, 0) };
@@ -347,6 +538,7 @@ public sealed partial class MainPage : Page
         var repairBtn = new Button { Content = "Repair Path..." };
 
         stack.Children.Add(titleBox);
+        stack.Children.Add(fetchCoverBtn);
         stack.Children.Add(tagsBox);
         stack.Children.Add(pathLabel);
         stack.Children.Add(folderText);
@@ -355,23 +547,263 @@ public sealed partial class MainPage : Page
 
         dialog.Content = stack;
 
-        repairBtn.Click += async (s, args) =>
+        bool shouldFetchCover = false;
+        bool shouldRepairPath = false;
+
+        fetchCoverBtn.Click += (s, args) =>
         {
+            shouldFetchCover = true;
             dialog.Hide();
-            await RepairPathAsync(game);
-            folderText.Text = $"Folder: {game.Folder}";
-            exeText.Text = $"Executable: {game.ExePath}";
-            await dialog.ShowAsync();
         };
 
-        var result = await dialog.ShowAsync();
-        if (result == ContentDialogResult.Primary)
+        repairBtn.Click += (s, args) =>
         {
-            game.Title = titleBox.Text;
-            game.Tags = tagsBox.Text;
-            _dbService.UpdateGame(game);
-            ApplyFilters();
-            RefreshTagsFilterCombo();
+            shouldRepairPath = true;
+            dialog.Hide();
+        };
+
+        bool isDialogActive = true;
+        while (isDialogActive)
+        {
+            shouldFetchCover = false;
+            shouldRepairPath = false;
+            var result = await dialog.ShowAsync();
+
+            if (shouldFetchCover)
+            {
+                var tempCover = await FetchOrUploadCoverAsync(titleBox.Text, config.SteamGridDbApiKey);
+                if (!string.IsNullOrEmpty(tempCover))
+                {
+                    var finalPath = Path.Combine(_dbService.CoversDirectory, $"{game.Id}.jpg");
+                    
+                    if (!string.IsNullOrEmpty(game.CoverPath) && File.Exists(game.CoverPath))
+                    {
+                        try { File.Delete(game.CoverPath); } catch { }
+                    }
+
+                    try
+                    {
+                        if (File.Exists(tempCover))
+                        {
+                            File.Move(tempCover, finalPath, true);
+                            game.CoverPath = null;
+                            game.CoverPath = finalPath;
+                            _dbService.UpdateGame(game);
+                            fetchCoverBtn.Content = "Cover Art Updated ✓";
+                        }
+                    }
+                    catch { }
+                }
+            }
+            else if (shouldRepairPath)
+            {
+                await RepairPathAsync(game);
+                folderText.Text = $"Folder: {game.Folder}";
+                exeText.Text = $"Executable: {game.ExePath}";
+            }
+            else if (result == ContentDialogResult.Primary)
+            {
+                game.Title = titleBox.Text;
+                game.Tags = tagsBox.Text;
+                _dbService.UpdateGame(game);
+                ApplyFilters();
+                RefreshTagsFilterCombo();
+                isDialogActive = false;
+            }
+            else
+            {
+                isDialogActive = false;
+            }
+        }
+    }
+
+    private async Task<string> FetchOrUploadCoverAsync(string searchTitle, string apiKey)
+    {
+        var coverService = new CoverArtService(apiKey);
+        var candidates = await coverService.SearchGameAsync(searchTitle);
+        
+        if (candidates.Count == 0)
+        {
+            return await PickManualCoverAsync();
+        }
+        
+        int selectedGameId = -1;
+        if (candidates.Count == 1)
+        {
+            selectedGameId = candidates[0].Id;
+        }
+        else
+        {
+            selectedGameId = await ShowDisambiguationDialogAsync(candidates);
+            if (selectedGameId == -1)
+            {
+                return null;
+            }
+            if (selectedGameId == -2)
+            {
+                return await PickManualCoverAsync();
+            }
+        }
+        
+        var grids = await coverService.GetGridUrlsAsync(selectedGameId);
+        if (grids.Count == 0)
+        {
+            return await PickManualCoverAsync();
+        }
+        
+        return await ShowGridPickerAsync(grids);
+    }
+
+    private async Task<string> PickManualCoverAsync()
+    {
+        var filePicker = new FileOpenPicker();
+        filePicker.FileTypeFilter.Add(".png");
+        filePicker.FileTypeFilter.Add(".jpg");
+        filePicker.FileTypeFilter.Add(".jpeg");
+        filePicker.FileTypeFilter.Add(".bmp");
+        filePicker.FileTypeFilter.Add(".gif");
+        filePicker.FileTypeFilter.Add(".webp");
+        
+        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.StartupWindow);
+        WinRT.Interop.InitializeWithWindow.Initialize(filePicker, hwnd);
+        
+        var file = await filePicker.PickSingleFileAsync();
+        if (file != null)
+        {
+            try
+            {
+                var tempName = $"temp_{Guid.NewGuid()}{Path.GetExtension(file.Path)}";
+                var tempPath = Path.Combine(_dbService.CoversDirectory, tempName);
+                File.Copy(file.Path, tempPath, true);
+                return tempPath;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private async Task<int> ShowDisambiguationDialogAsync(List<(int Id, string Name, int? ReleaseYear)> candidates)
+    {
+        var dialog = new ContentDialog
+        {
+            Title = "Select Game",
+            PrimaryButtonText = "Select",
+            SecondaryButtonText = "Upload Manually",
+            CloseButtonText = "Cancel",
+            XamlRoot = this.XamlRoot,
+            DefaultButton = ContentDialogButton.Primary,
+            IsPrimaryButtonEnabled = false
+        };
+
+        var list = new ListView
+        {
+            SelectionMode = ListViewSelectionMode.Single,
+            Margin = new Thickness(0, 12, 0, 12)
+        };
+
+        var items = candidates.Select(c => $"{c.Name}{(c.ReleaseYear.HasValue ? $" ({c.ReleaseYear.Value})" : "")}").ToList();
+        list.ItemsSource = items;
+
+        list.SelectionChanged += (s, e) =>
+        {
+            dialog.IsPrimaryButtonEnabled = list.SelectedIndex >= 0;
+        };
+
+        dialog.Content = list;
+        var result = await dialog.ShowAsync();
+        if (result == ContentDialogResult.Primary && list.SelectedIndex >= 0)
+        {
+            return candidates[list.SelectedIndex].Id;
+        }
+        if (result == ContentDialogResult.Secondary)
+        {
+            return -2;
+        }
+        return -1;
+    }
+
+    private async Task<string> ShowGridPickerAsync(List<GridImage> grids)
+    {
+        var dialog = new ContentDialog
+        {
+            Title = "Select Cover Art",
+            SecondaryButtonText = "Upload Manually",
+            CloseButtonText = "Cancel",
+            XamlRoot = this.XamlRoot
+        };
+
+        var mainStack = new StackPanel { Spacing = 16 };
+        
+        var gridStack = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 12,
+            HorizontalAlignment = HorizontalAlignment.Center
+        };
+
+        string selectedUrl = null;
+
+        int count = Math.Min(grids.Count, 3);
+        for (int i = 0; i < count; i++)
+        {
+            var gridItem = grids[i];
+            var img = new Image
+            {
+                Source = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri(gridItem.Thumb)),
+                Width = 110,
+                Height = 160,
+                Stretch = Microsoft.UI.Xaml.Media.Stretch.UniformToFill
+            };
+
+            var btn = new Button
+            {
+                Content = img,
+                Padding = new Thickness(4),
+                CornerRadius = new CornerRadius(4),
+                Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent)
+            };
+
+            btn.Click += (s, e) =>
+            {
+                selectedUrl = gridItem.Url;
+                dialog.Hide();
+            };
+
+            gridStack.Children.Add(btn);
+        }
+
+        mainStack.Children.Add(gridStack);
+        dialog.Content = mainStack;
+
+        var result = await dialog.ShowAsync();
+        if (selectedUrl != null)
+        {
+            return await DownloadCoverToTempAsync(selectedUrl);
+        }
+        if (result == ContentDialogResult.Secondary)
+        {
+            return await PickManualCoverAsync();
+        }
+        return null;
+    }
+
+    private async Task<string> DownloadCoverToTempAsync(string imageUrl)
+    {
+        try
+        {
+            using var client = new HttpClient();
+            var bytes = await client.GetByteArrayAsync(imageUrl);
+            var tempName = $"temp_{Guid.NewGuid()}.jpg";
+            var tempPath = Path.Combine(_dbService.CoversDirectory, tempName);
+            await File.WriteAllBytesAsync(tempPath, bytes);
+            return tempPath;
+        }
+        catch
+        {
+            return null;
         }
     }
 
@@ -663,16 +1095,24 @@ public sealed partial class MainPage : Page
     {
         try
         {
-            var ext = Path.GetExtension(sourceFilePath);
-            var newFileName = $"{game.Id}_{Guid.NewGuid()}{ext}";
-            var destPath = Path.Combine(_dbService.CoversDirectory, newFileName);
+            var destPath = Path.Combine(_dbService.CoversDirectory, $"{game.Id}.jpg");
             
-            if (!string.IsNullOrEmpty(game.CoverPath) && File.Exists(game.CoverPath))
+            if (!string.Equals(sourceFilePath, destPath, StringComparison.OrdinalIgnoreCase))
             {
-                try { File.Delete(game.CoverPath); } catch { }
+                if (File.Exists(destPath))
+                {
+                    try { File.Delete(destPath); } catch { }
+                }
+                
+                if (!string.IsNullOrEmpty(game.CoverPath) && File.Exists(game.CoverPath) && !string.Equals(game.CoverPath, destPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    try { File.Delete(game.CoverPath); } catch { }
+                }
+
+                File.Copy(sourceFilePath, destPath, true);
             }
             
-            File.Copy(sourceFilePath, destPath, true);
+            game.CoverPath = null;
             game.CoverPath = destPath;
             _dbService.UpdateGame(game);
         }
@@ -717,5 +1157,32 @@ public sealed partial class MainPage : Page
         {
             return new List<string>();
         }
+    }
+
+    private string CleanFolderTitle(string folderPath)
+    {
+        var title = Path.GetFileName(folderPath) ?? "";
+        
+        string[] suffixes = {
+            " - Gold Edition", " - Definitive Edition", " - Remastered", " - Game of the Year Edition", " - Game of the Year",
+            " - GOTY", " - Deluxe Edition", " - Special Edition", " - Ultimate Edition", " - Director's Cut", " - Directors Cut",
+            " - Enhanced Edition", " - Anniversary Edition", " - Limited Edition",
+            "- Gold Edition", "- Definitive Edition", "- Remastered", "- Game of the Year Edition", "- Game of the Year",
+            "- Deluxe Edition", "- Special Edition", "- Ultimate Edition", "- Director's Cut", "- Enhanced Edition",
+            "- Anniversary Edition", "- Limited Edition"
+        };
+
+        foreach (var suffix in suffixes)
+        {
+            if (title.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+            {
+                title = title.Substring(0, title.Length - suffix.Length);
+                break;
+            }
+        }
+
+        title = title.Replace('_', ' ').Replace('-', ' ');
+        title = System.Text.RegularExpressions.Regex.Replace(title, @"\s+", " ");
+        return title.Trim();
     }
 }
