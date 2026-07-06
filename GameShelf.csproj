@@ -61,4 +61,12 @@
     <Copy SourceFiles="$(TargetDir)GameShelf.exe" DestinationFiles="$(TargetDir)Aether.exe" SkipUnchangedFiles="true" />
     <Copy SourceFiles="$(TargetDir)GameShelf.pdb" DestinationFiles="$(TargetDir)Aether.pdb" SkipUnchangedFiles="true" />
   </Target>
+
+  <!-- Post-publish target to rename executable to Aether.exe in publish folder -->
+  <Target Name="RenamePublishedExecutable" AfterTargets="Publish">
+    <Copy SourceFiles="$(PublishDir)GameShelf.exe" DestinationFiles="$(PublishDir)Aether.exe" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="$(PublishDir)GameShelf.pdb" DestinationFiles="$(PublishDir)Aether.pdb" SkipUnchangedFiles="true" />
+    <Delete Files="$(PublishDir)GameShelf.exe" />
+    <Delete Files="$(PublishDir)GameShelf.pdb" />
+  </Target>
 </Project>

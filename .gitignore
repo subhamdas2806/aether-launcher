@@ -20,3 +20,6 @@ Desktop.ini
 # Local logs / crashes
 launch_log.txt
 crash.txt
+
+# Installer builds
+setup/
