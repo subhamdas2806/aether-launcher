@@ -69,4 +69,14 @@
     <Delete Files="$(PublishDir)GameShelf.exe" />
     <Delete Files="$(PublishDir)GameShelf.pdb" />
   </Target>
+
+  <!-- Copy XAML resources (*.xbf, *.pri) to publish folder for unpackaged app -->
+  <Target Name="CopyXAMLResourcesToPublish" AfterTargets="Publish">
+    <ItemGroup>
+      <XamlFiles Include="$(TargetDir)**\*.xbf" />
+      <PriFiles Include="$(TargetDir)**\*.pri" />
+    </ItemGroup>
+    <Copy SourceFiles="@(XamlFiles)" DestinationFolder="$(PublishDir)%(RecursiveDir)" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(PriFiles)" DestinationFolder="$(PublishDir)%(RecursiveDir)" SkipUnchangedFiles="true" />
+  </Target>
 </Project>
