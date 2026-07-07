@@ -4,7 +4,7 @@
     <TargetFramework>net8.0-windows10.0.26100.0</TargetFramework>
     <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
     <RootNamespace>GameShelf</RootNamespace>
-    <AssemblyName>GameShelf</AssemblyName>
+    <AssemblyName>Aether</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Platforms>x86;x64;ARM64</Platforms>
     <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-$([System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture.ToString().ToLowerInvariant())</RuntimeIdentifier>
@@ -51,24 +51,10 @@
 
   <PropertyGroup>
     <PublishReadyToRun Condition="'$(Configuration)' == 'Debug'">False</PublishReadyToRun>
-    <PublishReadyToRun Condition="'$(Configuration)' != 'Debug'">True</PublishReadyToRun>
+    <PublishReadyToRun Condition="'$(Configuration)' != 'Debug'">False</PublishReadyToRun>
     <PublishTrimmed Condition="'$(Configuration)' == 'Debug'">False</PublishTrimmed>
     <PublishTrimmed Condition="'$(Configuration)' != 'Debug'">False</PublishTrimmed>
   </PropertyGroup>
-
-  <!-- Post-build target to copy executable to Aether.exe -->
-  <Target Name="RenameExecutable" AfterTargets="Build">
-    <Copy SourceFiles="$(TargetDir)GameShelf.exe" DestinationFiles="$(TargetDir)Aether.exe" SkipUnchangedFiles="true" />
-    <Copy SourceFiles="$(TargetDir)GameShelf.pdb" DestinationFiles="$(TargetDir)Aether.pdb" SkipUnchangedFiles="true" />
-  </Target>
-
-  <!-- Post-publish target to rename executable to Aether.exe in publish folder -->
-  <Target Name="RenamePublishedExecutable" AfterTargets="Publish">
-    <Copy SourceFiles="$(PublishDir)GameShelf.exe" DestinationFiles="$(PublishDir)Aether.exe" SkipUnchangedFiles="true" />
-    <Copy SourceFiles="$(PublishDir)GameShelf.pdb" DestinationFiles="$(PublishDir)Aether.pdb" SkipUnchangedFiles="true" />
-    <Delete Files="$(PublishDir)GameShelf.exe" />
-    <Delete Files="$(PublishDir)GameShelf.pdb" />
-  </Target>
 
   <!-- Copy XAML resources (*.xbf, *.pri) to publish folder for unpackaged app -->
   <Target Name="CopyXAMLResourcesToPublish" AfterTargets="Publish">
