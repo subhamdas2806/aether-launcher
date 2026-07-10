@@ -8,6 +8,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Animation;
 using Windows.Storage.Pickers;
 using Microsoft.UI.Text;
 using System.Net.Http;
@@ -1087,6 +1088,34 @@ public sealed partial class MainPage : Page
                         await UpdateGameCoverAsync(game, file.Path);
                     }
                 }
+            }
+        }
+    }
+
+    private void Card_PointerEntered(object sender, PointerRoutedEventArgs e)
+    {
+        if (sender is Grid cardRoot)
+        {
+            var hoverOn = cardRoot.Resources["HoverOnStory"] as Storyboard;
+            if (hoverOn != null)
+            {
+                var hoverOff = cardRoot.Resources["HoverOffStory"] as Storyboard;
+                hoverOff?.Stop();
+                hoverOn.Begin();
+            }
+        }
+    }
+
+    private void Card_PointerExited(object sender, PointerRoutedEventArgs e)
+    {
+        if (sender is Grid cardRoot)
+        {
+            var hoverOff = cardRoot.Resources["HoverOffStory"] as Storyboard;
+            if (hoverOff != null)
+            {
+                var hoverOn = cardRoot.Resources["HoverOnStory"] as Storyboard;
+                hoverOn?.Stop();
+                hoverOff.Begin();
             }
         }
     }

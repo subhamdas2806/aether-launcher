@@ -62,51 +62,112 @@
 
             <GridView.ItemTemplate>
                 <DataTemplate x:DataType="local:Game">
-                    <Grid Width="170" Margin="0,0,16,24" Background="#1D202B" CornerRadius="8" BorderThickness="1" BorderBrush="#2F3542"
+                    <Grid Width="180" Margin="0,0,16,24" 
+                          PointerEntered="Card_PointerEntered" PointerExited="Card_PointerExited"
                           AllowDrop="True" DragOver="Card_DragOver" Drop="Card_Drop" Tag="{x:Bind}">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="240" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
+                        <Grid.RenderTransform>
+                            <TransformGroup>
+                                <ScaleTransform x:Name="CardScale" CenterX="90" CenterY="140" />
+                                <TranslateTransform x:Name="CardTranslate" />
+                            </TransformGroup>
+                        </Grid.RenderTransform>
+                        
+                        <!-- Outer Clear Acrylic Case Border -->
+                        <Border BorderThickness="3" Background="#1A1C23" CornerRadius="3" Padding="0" Margin="0">
+                            <Border.BorderBrush>
+                                <SolidColorBrush x:Name="CardBorderBrush" Color="#3BFFFFFF" />
+                            </Border.BorderBrush>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <!-- Left Hinge/Spine -->
+                                    <ColumnDefinition Width="14" />
+                                    <!-- Cover and Info Area -->
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                
+                                <!-- Left Plastic Spine/Hinge -->
+                                <Grid Grid.Column="0" Background="#121316">
+                                    <Border Background="#090A0C" Margin="4,0,4,0" CornerRadius="1" />
+                                    <Border BorderThickness="0,0,1,0" BorderBrush="#33FFFFFF" Opacity="0.3" />
+                                    <Border BorderThickness="1,0,0,0" BorderBrush="#22FFFFFF" Opacity="0.2" />
+                                </Grid>
 
-                        <!-- Cover image area with overlays -->
-                        <Grid Grid.Row="0" CornerRadius="8,8,0,0" Background="#11141B">
-                            <Image Source="{x:Bind CoverImageSource, Mode=OneWay}" Stretch="UniformToFill" Width="170" Height="240" />
+                                <!-- Front Cover Insert & Info Inlay -->
+                                <Grid Grid.Column="1">
+                                    <Grid.RowDefinitions>
+                                        <!-- Top PC CD-ROM Banner -->
+                                        <RowDefinition Height="18" />
+                                        <!-- Cover Image -->
+                                        <RowDefinition Height="200" />
+                                        <!-- Info Tray Inlay -->
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
 
-                            <!-- Running overlay -->
-                            <Grid Background="#CC111827" Visibility="{x:Bind RunningVisibility, Mode=OneWay}">
-                                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="8">
-                                    <ProgressRing IsActive="True" Foreground="#2ECC71" Width="30" Height="30" />
-                                    <TextBlock Text="RUNNING" FontWeight="Bold" Foreground="#2ECC71" FontSize="12" CharacterSpacing="100" />
-                                </StackPanel>
+                                    <!-- 1. PC CD-ROM Banner -->
+                                    <Grid Grid.Row="0" Background="White" Padding="4,0,4,0">
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <TextBlock Grid.Column="0" Text="PC CD-ROM" FontSize="9" FontWeight="Black" Foreground="Black" FontFamily="Impact, sans-serif" VerticalAlignment="Center" CharacterSpacing="50" />
+                                            <FontIcon Grid.Column="1" Glyph="&#xE958;" FontSize="8" Foreground="Black" VerticalAlignment="Center" />
+                                        </Grid>
+                                        <Border BorderThickness="0,0,0,1" BorderBrush="#CCCCCC" />
+                                    </Grid>
+
+                                    <!-- 2. Cover Art with Glossy Shine -->
+                                    <Grid Grid.Row="1" Background="#0C0D11">
+                                        <Image Source="{x:Bind CoverImageSource, Mode=OneWay}" Stretch="UniformToFill" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" />
+
+                                        <!-- Running Overlay -->
+                                        <Grid Background="#DD111827" Visibility="{x:Bind RunningVisibility, Mode=OneWay}">
+                                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="8">
+                                                <ProgressRing IsActive="True" Foreground="#2ECC71" Width="26" Height="26" />
+                                                <TextBlock Text="RUNNING" FontWeight="Bold" Foreground="#2ECC71" FontSize="11" CharacterSpacing="100" />
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <!-- Glossy Plastic/Glass Reflection (Diagonal Sheen) -->
+                                        <Grid IsHitTestVisible="False" Opacity="0.4">
+                                            <Grid.Background>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                    <GradientStop Color="#00FFFFFF" Offset="0.0" />
+                                                    <GradientStop x:Name="GlossStop1" Color="#00FFFFFF" Offset="0.0" />
+                                                    <GradientStop x:Name="GlossStop2" Color="#4DFFFFFF" Offset="0.05" />
+                                                    <GradientStop x:Name="GlossStop3" Color="#80FFFFFF" Offset="0.1" />
+                                                    <GradientStop Color="#00FFFFFF" Offset="0.25" />
+                                                    <GradientStop Color="#00FFFFFF" Offset="1.0" />
+                                                </LinearGradientBrush>
+                                            </Grid.Background>
+                                        </Grid>
+                                        
+                                        <Border BorderThickness="1" BorderBrush="#22FFFFFF" Opacity="0.5" />
+                                    </Grid>
+
+                                    <!-- 3. Tray Inlay / Info Tray -->
+                                    <StackPanel Grid.Row="2" Padding="10,8,10,8" Spacing="4" Background="#171A21">
+                                        <TextBlock Text="{x:Bind Title, Mode=OneWay}" FontWeight="Bold" FontSize="13" Foreground="White" TextTrimming="CharacterEllipsis" MaxLines="1" />
+                                        
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <TextBlock Grid.Column="0" Text="{x:Bind DisplayPlayTime, Mode=OneWay}" FontSize="11" Foreground="DarkGray" />
+                                            <FontIcon Grid.Column="1" Glyph="&#xE768;" FontSize="11" Foreground="LightGray" VerticalAlignment="Center" />
+                                        </Grid>
+
+                                        <ItemsControl ItemsSource="{x:Bind TagList, Mode=OneWay}" Margin="0,2,0,0">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <VariableSizedWrapGrid Orientation="Horizontal" MaximumRowsOrColumns="-1" />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Background="#2B303C" CornerRadius="3" Padding="4,1,4,1" Margin="0,0,3,3">
+                                                        <TextBlock Text="{Binding}" FontSize="9" Foreground="#CBD5E0" />
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Grid>
                             </Grid>
-                        </Grid>
-
-                        <!-- Info Area -->
-                        <StackPanel Grid.Row="1" Padding="12" Spacing="6">
-                            <TextBlock Text="{x:Bind Title, Mode=OneWay}" FontWeight="SemiBold" FontSize="14" Foreground="White" TextTrimming="CharacterEllipsis" MaxLines="1" />
-                            
-                            <Grid ColumnDefinitions="*,Auto">
-                                <TextBlock Grid.Column="0" Text="{x:Bind DisplayPlayTime, Mode=OneWay}" FontSize="12" Foreground="DarkGray" />
-                                <FontIcon Grid.Column="1" Glyph="&#xE768;" FontSize="12" Foreground="LightGray" VerticalAlignment="Center" />
-                            </Grid>
-
-                            <!-- Tags display -->
-                            <ItemsControl ItemsSource="{x:Bind TagList, Mode=OneWay}" Margin="0,4,0,0">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <VariableSizedWrapGrid Orientation="Horizontal" MaximumRowsOrColumns="-1" />
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border Background="#373E4D" CornerRadius="4" Padding="6,2,6,2" Margin="0,0,4,4">
-                                            <TextBlock Text="{Binding}" FontSize="10" Foreground="#E2E8F0" />
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
+                        </Border>
 
                         <!-- Right click Context Menu -->
                         <Grid.ContextFlyout>
