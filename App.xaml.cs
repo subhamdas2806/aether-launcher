@@ -32,6 +32,7 @@ public partial class App : Application
         try
         {
             InitializeComponent();
+            UnhandledException += App_UnhandledException;
         }
         catch (Exception ex)
         {
@@ -44,6 +45,37 @@ public partial class App : Application
             catch { }
             throw;
         }
+    }
+
+    private void App_UnhandledException(object sender, Microsoft.UI.Xaml.UnhandledExceptionEventArgs e)
+    {
+        try
+        {
+            var dir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Aether");
+            if (!System.IO.Directory.Exists(dir)) System.IO.Directory.CreateDirectory(dir);
+            
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("--- UNHANDLED EXCEPTION ---");
+            sb.AppendLine($"Time: {DateTime.Now}");
+            sb.AppendLine($"Message: {e.Message}");
+            sb.AppendLine($"Handled: {e.Handled}");
+            
+            var ex = e.Exception;
+            int depth = 0;
+            while (ex != null)
+            {
+                sb.AppendLine($"\n[Exception Level {depth}]");
+                sb.AppendLine($"Type: {ex.GetType().FullName}");
+                sb.AppendLine($"Message: {ex.Message}");
+                sb.AppendLine($"HResult: 0x{ex.HResult:X8}");
+                sb.AppendLine($"StackTrace:\n{ex.StackTrace}");
+                ex = ex.InnerException;
+                depth++;
+            }
+            
+            System.IO.File.WriteAllText(System.IO.Path.Combine(dir, "crash_unhandled.txt"), sb.ToString());
+        }
+        catch { }
     }
 
     /// <summary>

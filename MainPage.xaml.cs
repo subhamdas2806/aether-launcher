@@ -32,49 +32,213 @@ public sealed partial class MainPage : Page
         _dbService = new DatabaseService();
         _launchService = new LaunchService(_dbService);
 
-        LoadGames();
+        Loaded += (s, e) => LoadGames();
+    }
+
+    private static async Task<(string PrimaryHex, string SecondaryHex)> ExtractTwoToneColorsAsync(string imagePath)
+    {
+        try
+        {
+            if (!File.Exists(imagePath)) return ("#FF1b2838", "#FF1e222a");
+            
+            var file = await Windows.Storage.StorageFile.GetFileFromPathAsync(imagePath);
+            using var stream = await file.OpenAsync(Windows.Storage.FileAccessMode.Read);
+            var decoder = await Windows.Graphics.Imaging.BitmapDecoder.CreateAsync(stream);
+            
+            using var softwareBitmap = await decoder.GetSoftwareBitmapAsync();
+            var buffer = new Windows.Storage.Streams.Buffer((uint)(softwareBitmap.PixelWidth * softwareBitmap.PixelHeight * 4));
+            softwareBitmap.CopyToBuffer(buffer);
+            var reader = Windows.Storage.Streams.DataReader.FromBuffer(buffer);
+            var bytes = new byte[buffer.Capacity];
+            reader.ReadBytes(bytes);
+            
+            long rSum = 0, gSum = 0, bSum = 0;
+            int totalCount = 0;
+            var sampleColors = new List<Windows.UI.Color>();
+            
+            for (int i = 0; i < bytes.Length; i += 400)
+            {
+                if (i + 2 < bytes.Length)
+                {
+                    byte bVal = bytes[i];
+                    byte gVal = bytes[i + 1];
+                    byte rVal = bytes[i + 2];
+                    
+                    rSum += rVal;
+                    gSum += gVal;
+                    bSum += bVal;
+                    totalCount++;
+                    
+                    sampleColors.Add(Windows.UI.Color.FromArgb(255, rVal, gVal, bVal));
+                }
+            }
+            
+            if (totalCount == 0) return ("#FF1b2838", "#FF1e222a");
+            
+            double avgR = (double)rSum / totalCount;
+            double avgG = (double)gSum / totalCount;
+            double avgB = (double)bSum / totalCount;
+            double avgLuminance = 0.299 * avgR + 0.587 * avgG + 0.114 * avgB;
+            
+            long lightR = 0, lightG = 0, lightB = 0, lightCount = 0;
+            long darkR = 0, darkG = 0, darkB = 0, darkCount = 0;
+            
+            foreach (var color in sampleColors)
+            {
+                double lum = 0.299 * color.R + 0.587 * color.G + 0.114 * color.B;
+                if (lum >= avgLuminance)
+                {
+                    lightR += color.R;
+                    lightG += color.G;
+                    lightB += color.B;
+                    lightCount++;
+                }
+                else
+                {
+                    darkR += color.R;
+                    darkG += color.G;
+                    darkB += color.B;
+                    darkCount++;
+                }
+            }
+            
+            Windows.UI.Color primaryColor = Windows.UI.Color.FromArgb(255, (byte)avgR, (byte)avgG, (byte)avgB);
+            Windows.UI.Color secondaryColor = Windows.UI.Color.FromArgb(255, (byte)avgR, (byte)avgG, (byte)avgB);
+            
+            if (lightCount > 0)
+            {
+                primaryColor = Windows.UI.Color.FromArgb(255, (byte)(lightR / lightCount), (byte)(lightG / lightCount), (byte)(lightB / lightCount));
+            }
+            if (darkCount > 0)
+            {
+                secondaryColor = Windows.UI.Color.FromArgb(255, (byte)(darkR / darkCount), (byte)(darkG / darkCount), (byte)(darkB / darkCount));
+            }
+            
+            var primaryClamped = ClampColorForDarkTheme(primaryColor);
+            var secondaryClamped = ClampColorForDarkTheme(secondaryColor);
+            
+            return (Game.ColorToHex(primaryClamped), Game.ColorToHex(secondaryClamped));
+        }
+        catch { }
+        return ("#FF1b2838", "#FF1e222a");
+    }
+
+    public static Windows.UI.Color ClampColorForDarkTheme(Windows.UI.Color color)
+    {
+        double r = color.R / 255.0;
+        double g = color.G / 255.0;
+        double b = color.B / 255.0;
+
+        double max = Math.Max(r, Math.Max(g, b));
+        double min = Math.Min(r, Math.Min(g, b));
+        double h = 0, s = 0, l = (max + min) / 2.0;
+
+        if (max != min)
+        {
+            double d = max - min;
+            s = l > 0.5 ? d / (2.0 - max - min) : d / (max + min);
+            if (max == r)
+                h = (g - b) / d + (g < b ? 6 : 0);
+            else if (max == g)
+                h = (b - r) / d + 2;
+            else if (max == b)
+                h = (r - g) / d + 4;
+            h /= 6.0;
+        }
+
+        if (s < 0.15) s = 0.25; 
+        if (l > 0.45) l = 0.45; 
+        if (l < 0.15) l = 0.15; 
+
+        double q = l < 0.5 ? l * (1.0 + s) : l + s - l * s;
+        double p = 2.0 * l - q;
+
+        double ToRgb(double tc)
+        {
+            if (tc < 0) tc += 1.0;
+            if (tc > 1) tc -= 1.0;
+            if (tc < 1.0 / 6.0) return p + (q - p) * 6.0 * tc;
+            if (tc < 1.0 / 2.0) return q;
+            if (tc < 2.0 / 3.0) return p + (q - p) * (2.0 / 3.0 - tc) * 6.0;
+            return p;
+        }
+
+        byte rOut = (byte)Math.Clamp(ToRgb(h + 1.0 / 3.0) * 255.0, 0, 255);
+        byte gOut = (byte)Math.Clamp(ToRgb(h) * 255.0, 0, 255);
+        byte bOut = (byte)Math.Clamp(ToRgb(h - 1.0 / 3.0) * 255.0, 0, 255);
+
+        return Windows.UI.Color.FromArgb(255, rOut, gOut, bOut);
     }
 
     private void LoadGames()
     {
         AllGames.Clear();
         var games = _dbService.GetAllGames();
+        var dispatcher = this.DispatcherQueue;
         foreach (var game in games)
         {
+            var lastPlayed = _dbService.GetLastPlayed(game.Id);
+            if (lastPlayed.HasValue)
+            {
+                game.LastPlayedText = lastPlayed.Value.ToString("MMM d, yyyy");
+                game.DisplayLastPlayedText = $"Last played: {game.LastPlayedText}";
+            }
+            else
+            {
+                game.LastPlayedText = null;
+                game.DisplayLastPlayedText = "Never played";
+            }
+
+            var recentSeconds = _dbService.GetRecentPlayTimeSeconds(game.Id);
+            game.DisplayRecentPlayTime = Game.FormatPlayTime(recentSeconds);
+
+            game.IsNewToLibrary = game.PlayTimeSeconds == 0 || 
+                                  (game.DateAdded != null && DateTime.TryParse(game.DateAdded, out var dt) && (DateTime.UtcNow - dt).TotalDays <= 7);
+
+            if (game.HasCover)
+            {
+                var coverPath = game.CoverPath!;
+                var targetGame = game;
+                if (string.IsNullOrEmpty(game.AccentColorPrimary) || string.IsNullOrEmpty(game.AccentColorSecondary))
+                {
+                    Task.Run(async () =>
+                    {
+                        var (primary, secondary) = await ExtractTwoToneColorsAsync(coverPath);
+                        _dbService.UpdateGameColors(targetGame.Id, primary, secondary);
+                        dispatcher.TryEnqueue(() =>
+                        {
+                            targetGame.AccentColorPrimary = primary;
+                            targetGame.AccentColorSecondary = secondary;
+                            targetGame.DominantColor = targetGame.AmbientGlowColorPrimary;
+                        });
+                    });
+                }
+                else
+                {
+                    dispatcher.TryEnqueue(() =>
+                    {
+                        targetGame.DominantColor = targetGame.AmbientGlowColorPrimary;
+                    });
+                }
+            }
+
             AllGames.Add(game);
         }
         ApplyFilters();
-        RefreshTagsFilterCombo();
     }
 
     private void ApplyFilters()
     {
-        var searchText = SearchBox.Text.Trim();
-        var selectedTagItem = TagFilterCombo.SelectedItem;
-        string selectedTag = "All Tags";
-        
-        if (selectedTagItem is ComboBoxItem cbi)
-        {
-            selectedTag = cbi.Content as string ?? "All Tags";
-        }
-        else if (selectedTagItem is string s)
-        {
-            selectedTag = s;
-        }
+        var sidebarSearchText = SidebarSearchBox != null ? SidebarSearchBox.Text.Trim() : "";
 
         var filtered = AllGames.AsEnumerable();
 
-        if (!string.IsNullOrEmpty(searchText))
+        if (!string.IsNullOrEmpty(sidebarSearchText))
         {
             filtered = filtered.Where(g => 
-                g.Title.Contains(searchText, StringComparison.OrdinalIgnoreCase) || 
-                (g.Tags != null && g.Tags.Contains(searchText, StringComparison.OrdinalIgnoreCase))
+                g.Title.Contains(sidebarSearchText, StringComparison.OrdinalIgnoreCase) || 
+                (g.Tags != null && g.Tags.Contains(sidebarSearchText, StringComparison.OrdinalIgnoreCase))
             );
-        }
-
-        if (!string.Equals(selectedTag, "All Tags", StringComparison.OrdinalIgnoreCase))
-        {
-            filtered = filtered.Where(g => g.TagList.Contains(selectedTag, StringComparer.OrdinalIgnoreCase));
         }
 
         FilteredGames.Clear();
@@ -82,53 +246,6 @@ public sealed partial class MainPage : Page
         {
             FilteredGames.Add(game);
         }
-    }
-
-    private void RefreshTagsFilterCombo()
-    {
-        var selectedTag = "All Tags";
-        if (TagFilterCombo.SelectedItem is ComboBoxItem cbi)
-        {
-            selectedTag = cbi.Content as string ?? "All Tags";
-        }
-        else if (TagFilterCombo.SelectedItem is string s)
-        {
-            selectedTag = s;
-        }
-
-        TagFilterCombo.SelectionChanged -= TagFilterCombo_SelectionChanged;
-        TagFilterCombo.Items.Clear();
-        
-        var allTagsItem = new ComboBoxItem { Content = "All Tags" };
-        TagFilterCombo.Items.Add(allTagsItem);
-        TagFilterCombo.SelectedItem = allTagsItem;
-
-        var uniqueTags = AllGames
-            .SelectMany(g => g.TagList)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(t => t)
-            .ToList();
-
-        foreach (var tag in uniqueTags)
-        {
-            TagFilterCombo.Items.Add(tag);
-            if (string.Equals(tag, selectedTag, StringComparison.OrdinalIgnoreCase))
-            {
-                TagFilterCombo.SelectedItem = tag;
-            }
-        }
-
-        TagFilterCombo.SelectionChanged += TagFilterCombo_SelectionChanged;
-    }
-
-    private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
-    {
-        ApplyFilters();
-    }
-
-    private void TagFilterCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        ApplyFilters();
     }
 
     private void GamesGrid_ItemClick(object sender, ItemClickEventArgs e)
@@ -450,6 +567,12 @@ public sealed partial class MainPage : Page
                             }
                             File.Move(selectedTempCoverPath, finalPath);
                             newGame.CoverPath = finalPath;
+                            
+                            var (primary, secondary) = await ExtractTwoToneColorsAsync(finalPath);
+                            newGame.AccentColorPrimary = primary;
+                            newGame.AccentColorSecondary = secondary;
+                            newGame.DominantColor = newGame.AmbientGlowColorPrimary;
+                            
                             _dbService.UpdateGame(newGame);
                         }
                     }
@@ -458,7 +581,6 @@ public sealed partial class MainPage : Page
 
                 AllGames.Add(newGame);
                 ApplyFilters();
-                RefreshTagsFilterCombo();
                 isDialogActive = false;
             }
             else
@@ -608,7 +730,6 @@ public sealed partial class MainPage : Page
                 game.Tags = tagsBox.Text;
                 _dbService.UpdateGame(game);
                 ApplyFilters();
-                RefreshTagsFilterCombo();
                 isDialogActive = false;
             }
             else
@@ -1059,7 +1180,6 @@ public sealed partial class MainPage : Page
             }
             AllGames.Remove(game);
             ApplyFilters();
-            RefreshTagsFilterCombo();
         }
     }
 
@@ -1092,16 +1212,240 @@ public sealed partial class MainPage : Page
         }
     }
 
+    private struct CardElements
+    {
+        public PlaneProjection? Projection;
+        public ScaleTransform? Scale;
+        public TranslateTransform? Translate;
+        public Border? AmbientGlow;
+        public Border? CardBorder;
+        public SolidColorBrush? BorderBrush;
+        public Border? HolographicShimmer;
+        public LinearGradientBrush? ShimmerBrush;
+        public Microsoft.UI.Xaml.Controls.Primitives.Popup? HoverPopup;
+    }
+
+    private CardElements GetCardElements(Grid cardRoot)
+    {
+        var elements = new CardElements();
+        
+        elements.Projection = cardRoot.Projection as PlaneProjection;
+        
+        if (cardRoot.RenderTransform is TransformGroup tg)
+        {
+            if (tg.Children.Count > 0) elements.Scale = tg.Children[0] as ScaleTransform;
+            if (tg.Children.Count > 1) elements.Translate = tg.Children[1] as TranslateTransform;
+        }
+        
+        if (cardRoot.Children.Count > 0 && cardRoot.Children[0] is Border glow)
+        {
+            elements.AmbientGlow = glow;
+        }
+        
+        if (cardRoot.Children.Count > 1 && cardRoot.Children[1] is Border cardBorder)
+        {
+            elements.CardBorder = cardBorder;
+            elements.BorderBrush = cardBorder.BorderBrush as SolidColorBrush;
+            
+            if (cardBorder.Child is Grid cardGrid && cardGrid.Children.Count > 1 && cardGrid.Children[1] is Border shimmer)
+            {
+                elements.HolographicShimmer = shimmer;
+                elements.ShimmerBrush = shimmer.Background as LinearGradientBrush;
+            }
+        }
+        
+        if (cardRoot.Children.Count > 2 && cardRoot.Children[2] is Microsoft.UI.Xaml.Controls.Primitives.Popup popup)
+        {
+            elements.HoverPopup = popup;
+        }
+        
+        return elements;
+    }
+
+    private void AnimateDouble(DependencyObject target, string path, double? from, double to, double durationMs)
+    {
+        if (target == null) return;
+        var animation = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
+        {
+            To = to,
+            Duration = new Duration(TimeSpan.FromMilliseconds(durationMs)),
+            EasingFunction = new Microsoft.UI.Xaml.Media.Animation.CubicEase { EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut },
+            EnableDependentAnimation = true
+        };
+        if (from.HasValue) animation.From = from.Value;
+        
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animation, target);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animation, path);
+        
+        var storyboard = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
+        storyboard.Children.Add(animation);
+        storyboard.Begin();
+    }
+
+    private void AnimateColor(SolidColorBrush brush, Windows.UI.Color toColor, double durationMs)
+    {
+        if (brush == null) return;
+        var animation = new Microsoft.UI.Xaml.Media.Animation.ColorAnimation
+        {
+            To = toColor,
+            Duration = new Duration(TimeSpan.FromMilliseconds(durationMs)),
+            EasingFunction = new Microsoft.UI.Xaml.Media.Animation.CubicEase { EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut }
+        };
+        
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animation, brush);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animation, "Color");
+        
+        var storyboard = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
+        storyboard.Children.Add(animation);
+        storyboard.Begin();
+    }
+
+    private void AnimateGlowColor(GradientStop targetStop, Windows.UI.Color toColor, double durationMs)
+    {
+        if (targetStop == null) return;
+        var animation = new Microsoft.UI.Xaml.Media.Animation.ColorAnimation
+        {
+            To = toColor,
+            Duration = new Duration(TimeSpan.FromMilliseconds(durationMs)),
+            EasingFunction = new Microsoft.UI.Xaml.Media.Animation.CubicEase { EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut }
+        };
+        
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animation, targetStop);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animation, "Color");
+        
+        var storyboard = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
+        storyboard.Children.Add(animation);
+        storyboard.Begin();
+    }
+    private bool _isSidebarOpen = false;
+
+    private void HamburgerButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (SidebarContainer == null) return;
+        
+        if (_isSidebarOpen)
+        {
+            AnimateDouble(SidebarContainer, "Width", null, 0, 250);
+            _isSidebarOpen = false;
+        }
+        else
+        {
+            AnimateDouble(SidebarContainer, "Width", null, 300, 300);
+            _isSidebarOpen = true;
+        }
+    }
     private void Card_PointerEntered(object sender, PointerRoutedEventArgs e)
     {
         if (sender is Grid cardRoot)
         {
-            var hoverOn = cardRoot.Resources["HoverOnStory"] as Storyboard;
-            if (hoverOn != null)
+            var el = GetCardElements(cardRoot);
+            
+            // 1. Focus Hovered Card (Scale & Lift)
+            if (el.Scale != null)
             {
-                var hoverOff = cardRoot.Resources["HoverOffStory"] as Storyboard;
-                hoverOff?.Stop();
-                hoverOn.Begin();
+                AnimateDouble(el.Scale, "ScaleX", null, 1.12, 200);
+                AnimateDouble(el.Scale, "ScaleY", null, 1.12, 200);
+            }
+            if (el.Translate != null)
+            {
+                AnimateDouble(el.Translate, "Y", null, -6, 200);
+            }
+            if (el.Projection != null)
+            {
+                AnimateDouble(el.Projection, "LocalOffsetZ", null, 25, 200);
+            }
+            if (el.BorderBrush != null)
+            {
+                AnimateColor(el.BorderBrush, Windows.UI.Color.FromArgb(80, 255, 255, 255), 200);
+            }
+            
+            // 2. Set Canvas.ZIndex on parent GridViewItem so it draws on top of neighbor cards and dim overlay
+            var container = GamesGrid.ContainerFromItem(cardRoot.Tag) as GridViewItem;
+            if (container != null)
+            {
+                Canvas.SetZIndex(container, 10);
+            }
+            
+            // 3. Bloom Local Color-Matched Blurred Halo Glow
+            if (el.AmbientGlow != null)
+            {
+                AnimateDouble(el.AmbientGlow, "Opacity", null, 0.75, 200);
+            }
+            
+            // 4. Fade in Holographic Iridescent Shimmer
+            if (el.HolographicShimmer != null)
+            {
+                AnimateDouble(el.HolographicShimmer, "Opacity", null, 0.45, 200);
+            }
+            
+            // 5. Crossfade Shared Glow Background (Catch-up lag)
+            var game = cardRoot.Tag as Game;
+            if (game != null && GlowStopPrimary != null && GlowStopSecondary != null && SharedAmbientGlow != null)
+            {
+                AnimateGlowColor(GlowStopPrimary, game.AmbientGlowColorPrimary, 400);
+                AnimateGlowColor(GlowStopSecondary, game.AmbientGlowColorSecondary, 400);
+                AnimateDouble(SharedAmbientGlow, "Opacity", null, 0.35, 400);
+            }
+            
+            // 6. Full-Screen Dim Overlay Fading In
+            if (ScreenDimOverlay != null)
+            {
+                AnimateDouble(ScreenDimOverlay, "Opacity", null, 0.85, 250);
+            }
+            
+            // 7. Align details popup
+            if (el.HoverPopup != null)
+            {
+                var transform = cardRoot.TransformToVisual(this);
+                var point = transform.TransformPoint(new Windows.Foundation.Point(0, 0));
+                
+                double popupWidth = 238; 
+                double cardWidth = cardRoot.ActualWidth;
+                double screenWidth = this.ActualWidth;
+                
+                double leftOffset = cardWidth + 12;
+                if (point.X + cardWidth + popupWidth > screenWidth)
+                {
+                    leftOffset = -popupWidth - 12;
+                }
+                
+                el.HoverPopup.HorizontalOffset = leftOffset;
+                el.HoverPopup.VerticalOffset = 16;
+                el.HoverPopup.IsOpen = true;
+            }
+        }
+    }
+
+    private void Card_PointerMoved(object sender, PointerRoutedEventArgs e)
+    {
+        if (sender is Grid cardRoot)
+        {
+            var el = GetCardElements(cardRoot);
+            if (el.Projection == null) return;
+            
+            var pos = e.GetCurrentPoint(cardRoot).Position;
+            double width = cardRoot.ActualWidth;
+            double height = cardRoot.ActualHeight;
+            
+            if (width <= 0 || height <= 0) return;
+            
+            // Max tilt 8deg (identical to React component physics)
+            double rotateX = ((pos.Y - height / 2.0) / (height / 2.0)) * -8.0;
+            double rotateY = ((pos.X - width / 2.0) / (width / 2.0)) * 8.0;
+            
+            el.Projection.RotationX = rotateX;
+            el.Projection.RotationY = rotateY;
+            
+            // Holographic shimmer linear gradient shift (enchanted Pokemon card shine)
+            if (el.HolographicShimmer != null && el.ShimmerBrush != null)
+            {
+                double xPercent = pos.X / width;
+                double yPercent = pos.Y / height;
+                
+                el.ShimmerBrush.StartPoint = new Windows.Foundation.Point(xPercent - 0.5, yPercent - 0.5);
+                el.ShimmerBrush.EndPoint = new Windows.Foundation.Point(xPercent + 0.5, yPercent + 0.5);
+                
+                el.HolographicShimmer.Opacity = 0.45;
             }
         }
     }
@@ -1110,13 +1454,93 @@ public sealed partial class MainPage : Page
     {
         if (sender is Grid cardRoot)
         {
-            var hoverOff = cardRoot.Resources["HoverOffStory"] as Storyboard;
-            if (hoverOff != null)
+            var el = GetCardElements(cardRoot);
+            
+            // 1. Restore focused card
+            if (el.Scale != null)
             {
-                var hoverOn = cardRoot.Resources["HoverOnStory"] as Storyboard;
-                hoverOn?.Stop();
-                hoverOff.Begin();
+                AnimateDouble(el.Scale, "ScaleX", null, 1.0, 150);
+                AnimateDouble(el.Scale, "ScaleY", null, 1.0, 150);
             }
+            if (el.Translate != null)
+            {
+                AnimateDouble(el.Translate, "Y", null, 0, 150);
+            }
+            if (el.Projection != null)
+            {
+                AnimateDouble(el.Projection, "RotationX", null, 0, 150);
+                AnimateDouble(el.Projection, "RotationY", null, 0, 150);
+                AnimateDouble(el.Projection, "LocalOffsetZ", null, 0, 150);
+            }
+            if (el.BorderBrush != null)
+            {
+                AnimateColor(el.BorderBrush, Windows.UI.Color.FromArgb(34, 255, 255, 255), 150);
+            }
+            
+            // 2. Reset Canvas.ZIndex on parent container
+            var container = GamesGrid.ContainerFromItem(cardRoot.Tag) as GridViewItem;
+            if (container != null)
+            {
+                Canvas.SetZIndex(container, 0);
+            }
+            
+            // 3. Fade out Local Ambient Haze Glow
+            if (el.AmbientGlow != null)
+            {
+                AnimateDouble(el.AmbientGlow, "Opacity", null, 0.0, 150);
+            }
+            
+            // 4. Fade out Holographic Iridescent Shimmer
+            if (el.HolographicShimmer != null)
+            {
+                AnimateDouble(el.HolographicShimmer, "Opacity", null, 0.0, 150);
+            }
+            
+            // 5. Restore shared background glow
+            if (GlowStopPrimary != null && GlowStopSecondary != null && SharedAmbientGlow != null)
+            {
+                AnimateGlowColor(GlowStopPrimary, Windows.UI.Color.FromArgb(255, 27, 40, 56), 400); 
+                AnimateGlowColor(GlowStopSecondary, Windows.UI.Color.FromArgb(255, 30, 34, 42), 400); 
+                AnimateDouble(SharedAmbientGlow, "Opacity", null, 0.15, 400);
+            }
+            
+            // 6. Fade out Full-Screen Dim Overlay
+            if (ScreenDimOverlay != null)
+            {
+                AnimateDouble(ScreenDimOverlay, "Opacity", null, 0.0, 200);
+            }
+            
+            if (el.HoverPopup != null)
+            {
+                el.HoverPopup.IsOpen = false;
+            }
+        }
+    }
+
+    private void Card_Unloaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is Grid cardRoot)
+        {
+            var el = GetCardElements(cardRoot);
+            if (el.HoverPopup != null)
+            {
+                el.HoverPopup.IsOpen = false;
+            }
+        }
+    }
+
+
+
+    private void SidebarSearchBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        ApplyFilters();
+    }
+
+    private void SidebarListView_ItemClick(object sender, ItemClickEventArgs e)
+    {
+        if (e.ClickedItem is Game game)
+        {
+            GamesGrid?.ScrollIntoView(game);
         }
     }
 
@@ -1143,6 +1567,12 @@ public sealed partial class MainPage : Page
             
             game.CoverPath = null;
             game.CoverPath = destPath;
+            
+            var (primary, secondary) = await ExtractTwoToneColorsAsync(destPath);
+            game.AccentColorPrimary = primary;
+            game.AccentColorSecondary = secondary;
+            game.DominantColor = game.AmbientGlowColorPrimary;
+            
             _dbService.UpdateGame(game);
         }
         catch (Exception ex)

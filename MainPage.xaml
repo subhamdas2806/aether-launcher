@@ -9,182 +9,234 @@
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}"
     mc:Ignorable="d">
 
-    <Grid Padding="24,12,24,24" RowDefinitions="Auto,Auto,*">
-        <!-- Header -->
-        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,16">
-            <StackPanel Grid.Column="0" Orientation="Vertical" Spacing="4">
-                <TextBlock Text="AETHER" FontSize="28" FontWeight="Bold" Foreground="#A29BFE" />
-                <TextBlock Text="Launch and track playtime of standalone and custom builds" Style="{ThemeResource BodyTextBlockStyle}" Foreground="Gray" />
-            </StackPanel>
+    <Grid Background="#0d0f13">
+        <Grid.ColumnDefinitions>
+            <!-- Column 0: Hidden/Hover Sidebar -->
+            <ColumnDefinition Width="Auto" />
+            <!-- Column 1: Main Viewport -->
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- SIDEBAR CONTAINER (PERMANENTLY VISIBLE) -->
+        <Grid Grid.Column="0" x:Name="SidebarContainer" Width="0" Background="#11151a" BorderThickness="0,0,1,0" BorderBrush="#1AFFFFFF" HorizontalAlignment="Left" Canvas.ZIndex="90">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
             
-            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                <Button Click="Settings_Click" Style="{ThemeResource DefaultButtonStyle}" Padding="16,8,16,8" CornerRadius="4">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <FontIcon Glyph="&#xE713;" FontSize="14" />
-                        <TextBlock Text="Settings" FontWeight="SemiBold" />
-                    </StackPanel>
-                </Button>
-                <Button Click="AddGame_Click" Style="{ThemeResource AccentButtonStyle}" Padding="16,8,16,8" CornerRadius="4">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <FontIcon Glyph="&#xE109;" FontSize="14" />
-                        <TextBlock Text="Add Game" FontWeight="SemiBold" />
-                    </StackPanel>
-                </Button>
-            </StackPanel>
+            <!-- 1. Search Bar -->
+            <TextBox Grid.Row="0" x:Name="SidebarSearchBox" Margin="20,24,20,12" PlaceholderText="Search games..." TextChanged="SidebarSearchBox_TextChanged" Background="#1a2026" Foreground="White" BorderThickness="1" BorderBrush="#22FFFFFF" CornerRadius="8" Height="40" VerticalContentAlignment="Center" Padding="12,0,12,0" />
+            
+            <!-- 2. Add Game Button -->
+            <Button Grid.Row="1" Click="AddGame_Click" Margin="20,0,20,20" HorizontalAlignment="Stretch" Height="40" CornerRadius="8" Background="#1a5fb4" BorderThickness="0">
+                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                    <FontIcon Glyph="&#xE109;" FontSize="14" Foreground="White" />
+                    <TextBlock Text="Add Game" FontSize="13" Foreground="White" FontWeight="Bold" />
+                </StackPanel>
+            </Button>
+            
+            <!-- 3. Scrollable List of Games -->
+            <ListView Grid.Row="2" x:Name="SidebarListView" ItemsSource="{x:Bind FilteredGames}" IsItemClickEnabled="True" ItemClick="SidebarListView_ItemClick" Padding="8,0,8,16" SelectionMode="None" Background="Transparent"
+                      ScrollViewer.VerticalScrollBarVisibility="Hidden"
+                      ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                <ListView.ItemTemplate>
+                    <DataTemplate x:DataType="local:Game">
+                        <StackPanel Orientation="Horizontal" Spacing="12" Padding="8,6,8,6">
+                            <Border Width="24" Height="36" CornerRadius="2">
+                                <Image Source="{x:Bind CoverImageSource}" Stretch="UniformToFill" />
+                            </Border>
+                            <TextBlock Text="{x:Bind Title}" VerticalAlignment="Center" FontSize="13" Foreground="LightGray" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
         </Grid>
 
-        <!-- Filter / Search bar -->
-        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="0,0,0,20" ColumnSpacing="12">
-            <TextBox Grid.Column="0" x:Name="SearchBox" PlaceholderText="Search by title or tags..." TextChanged="SearchBox_TextChanged" Width="300" HorizontalAlignment="Left" />
-            
-            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Bottom">
-                <TextBlock Text="Filter by Tag:" VerticalAlignment="Center" Foreground="Gray" Margin="0,0,4,0"/>
-                <ComboBox x:Name="TagFilterCombo" SelectionChanged="TagFilterCombo_SelectionChanged" Width="150">
-                    <ComboBoxItem Content="All Tags" IsSelected="True" />
-                </ComboBox>
-            </StackPanel>
-        </Grid>
+        <!-- Column 1 Viewport -->
+        <Grid Grid.Column="1" Padding="40,32,40,0" Background="#0d0f13">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
 
-        <!-- Game Library Grid -->
-        <GridView Grid.Row="2"
-                  x:Name="GamesGrid"
-                  ItemsSource="{x:Bind FilteredGames}"
-                  IsItemClickEnabled="True"
-                  ItemClick="GamesGrid_ItemClick"
-                  Padding="0,0,0,24"
-                  SelectionMode="None">
-            
-            <GridView.ItemsPanel>
-                <ItemsPanelTemplate>
-                    <ItemsWrapGrid Orientation="Horizontal" MaximumRowsOrColumns="-1" />
-                </ItemsPanelTemplate>
-            </GridView.ItemsPanel>
+            <!-- Shared Ambient Glow Background Layer -->
+            <Grid Grid.Row="0" Grid.RowSpan="2" x:Name="SharedAmbientGlow" IsHitTestVisible="False" Margin="-40" Opacity="0.15">
+                <Grid.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                        <LinearGradientBrush.GradientStops>
+                            <GradientStop x:Name="GlowStopPrimary" Color="#1b2838" Offset="0.0" />
+                            <GradientStop x:Name="GlowStopSecondary" Color="#1e222a" Offset="1.0" />
+                        </LinearGradientBrush.GradientStops>
+                    </LinearGradientBrush>
+                </Grid.Background>
+            </Grid>
 
-            <GridView.ItemTemplate>
-                <DataTemplate x:DataType="local:Game">
-                    <Grid Width="180" Margin="0,0,16,24" 
-                          PointerEntered="Card_PointerEntered" PointerExited="Card_PointerExited"
-                          AllowDrop="True" DragOver="Card_DragOver" Drop="Card_Drop" Tag="{x:Bind}">
-                        <Grid.RenderTransform>
-                            <TransformGroup>
-                                <ScaleTransform x:Name="CardScale" CenterX="90" CenterY="140" />
-                                <TranslateTransform x:Name="CardTranslate" />
-                            </TransformGroup>
-                        </Grid.RenderTransform>
-                        
-                        <!-- Outer Clear Acrylic Case Border -->
-                        <Border BorderThickness="3" Background="#1A1C23" CornerRadius="3" Padding="0" Margin="0">
-                            <Border.BorderBrush>
-                                <SolidColorBrush x:Name="CardBorderBrush" Color="#3BFFFFFF" />
-                            </Border.BorderBrush>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <!-- Left Hinge/Spine -->
-                                    <ColumnDefinition Width="14" />
-                                    <!-- Cover and Info Area -->
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
+            <!-- Top bar -->
+            <Grid Grid.Row="0" Margin="0,0,0,24" ColumnDefinitions="Auto,*,Auto">
+                <!-- Hamburger button (3 lines icon) -->
+                <Button Grid.Column="0" Click="HamburgerButton_Click" Background="Transparent" BorderThickness="0" Padding="8" Margin="0,0,16,0" CornerRadius="4" VerticalAlignment="Center">
+                    <FontIcon Glyph="&#xE700;" FontSize="18" Foreground="White" />
+                </Button>
+                <TextBlock Grid.Column="1" Text="LIBRARY" FontSize="28" FontWeight="Light" Foreground="White" CharacterSpacing="200" VerticalAlignment="Center" />
+                <Button Grid.Column="2" Click="Settings_Click" Style="{ThemeResource DefaultButtonStyle}" Padding="12,6,12,6" CornerRadius="4">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE713;" FontSize="13" />
+                        <TextBlock Text="Settings" FontWeight="SemiBold" FontSize="12" />
+                    </StackPanel>
+                </Button>
+            </Grid>
+
+            <!-- Dim Overlay -->
+            <Border Grid.Row="0" Grid.RowSpan="2" x:Name="ScreenDimOverlay" Background="#E6080a0e" Opacity="0.0" IsHitTestVisible="False" Canvas.ZIndex="5" Margin="-40" />
+
+            <!-- 3x2 Centered GridView -->
+            <GridView Grid.Row="1"
+                      x:Name="GamesGrid"
+                      ItemsSource="{x:Bind FilteredGames}"
+                      IsItemClickEnabled="True"
+                      ItemClick="GamesGrid_ItemClick"
+                      HorizontalAlignment="Center"
+                      VerticalAlignment="Top"
+                      SelectionMode="None"
+                      Canvas.ZIndex="6"
+                      Padding="0"
+                      Margin="0"
+                      ScrollViewer.VerticalScrollBarVisibility="Hidden"
+                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                      ScrollViewer.VerticalScrollMode="Enabled"
+                      ScrollViewer.HorizontalScrollMode="Disabled">
+                <GridView.ItemContainerStyle>
+                    <Style TargetType="GridViewItem">
+                        <Setter Property="Padding" Value="0" />
+                        <Setter Property="Margin" Value="0" />
+                        <Setter Property="MinWidth" Value="0" />
+                        <Setter Property="MinHeight" Value="0" />
+                        <Setter Property="HorizontalContentAlignment" Value="Center" />
+                        <Setter Property="VerticalContentAlignment" Value="Center" />
+                        <Setter Property="Background" Value="Transparent" />
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="GridViewItem">
+                                    <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </GridView.ItemContainerStyle>
+
+                <GridView.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <ItemsWrapGrid Orientation="Horizontal" MaximumRowsOrColumns="3" ItemWidth="520" ItemHeight="400" />
+                    </ItemsPanelTemplate>
+                </GridView.ItemsPanel>
+
+                <GridView.ItemTemplate>
+                    <DataTemplate x:DataType="local:Game">
+                        <Grid Width="240" Height="320" Margin="0" 
+                              PointerEntered="Card_PointerEntered" PointerExited="Card_PointerExited" PointerMoved="Card_PointerMoved"
+                              Unloaded="Card_Unloaded"
+                              AllowDrop="True" DragOver="Card_DragOver" Drop="Card_Drop" Tag="{x:Bind}">
+                            <Grid.Projection>
+                                <PlaneProjection x:Name="CardProjection" RotationX="0" RotationY="0" LocalOffsetZ="0" />
+                            </Grid.Projection>
+                            <Grid.RenderTransform>
+                                <TransformGroup>
+                                    <ScaleTransform x:Name="CardScale" CenterX="120" CenterY="160" />
+                                    <TranslateTransform x:Name="CardTranslate" />
+                                </TransformGroup>
+                            </Grid.RenderTransform>
+
+                            <!-- 1. Ambient Haze Glow Border directly behind the card -->
+                            <Border x:Name="AmbientGlowBorder" Margin="-25" CornerRadius="0" Opacity="0.0">
+                                <Border.Background>
+                                    <RadialGradientBrush>
+                                        <GradientStop Color="{x:Bind AmbientGlowColor, Mode=OneWay}" Offset="0.0" />
+                                        <GradientStop Color="Transparent" Offset="1.0" />
+                                    </RadialGradientBrush>
+                                </Border.Background>
+                            </Border>
+
+                            <!-- 2. Main Card Border container (SHARP CORNERS) -->
+                            <Border x:Name="CardBorder" BorderThickness="1.5" CornerRadius="0" Background="#1b2838">
+                                <Border.BorderBrush>
+                                    <SolidColorBrush Color="#22FFFFFF" />
+                                </Border.BorderBrush>
                                 
-                                <!-- Left Plastic Spine/Hinge -->
-                                <Grid Grid.Column="0" Background="#121316">
-                                    <Border Background="#090A0C" Margin="4,0,4,0" CornerRadius="1" />
-                                    <Border BorderThickness="0,0,1,0" BorderBrush="#33FFFFFF" Opacity="0.3" />
-                                    <Border BorderThickness="1,0,0,0" BorderBrush="#22FFFFFF" Opacity="0.2" />
+                                <Grid Background="#1b2838">
+                                    <!-- Background Cover Art Image (stretched uniform to fill) -->
+                                    <Image Source="{x:Bind CoverImageSource, Mode=OneWay}" Stretch="UniformToFill" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+
+                                    <!-- Iridescent Holographic Shine Overlay (sharp corners) -->
+                                    <Border x:Name="HolographicShimmer" Opacity="0.0" IsHitTestVisible="False">
+                                        <Border.Background>
+                                            <LinearGradientBrush x:Name="ShimmerBrush" StartPoint="0,0" EndPoint="1,1">
+                                                <GradientStop Color="#4DFF00FF" Offset="0.0" /> <!-- Iridescent Magenta -->
+                                                <GradientStop Color="#4D00FFFF" Offset="0.3" /> <!-- Iridescent Cyan -->
+                                                <GradientStop Color="#4DFFFF00" Offset="0.6" /> <!-- Iridescent Yellow -->
+                                                <GradientStop Color="#4D00FFFF" Offset="0.8" /> <!-- Iridescent Cyan -->
+                                                <GradientStop Color="#4DFF00FF" Offset="1.0" /> <!-- Iridescent Magenta -->
+                                            </LinearGradientBrush>
+                                        </Border.Background>
+                                    </Border>
+
+                                    <!-- Running Overlay -->
+                                    <Grid Background="#DD111827" Visibility="{x:Bind RunningVisibility, Mode=OneWay}">
+                                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="8">
+                                            <ProgressRing IsActive="True" Foreground="#2ECC71" Width="26" Height="26" />
+                                            <TextBlock Text="RUNNING" FontWeight="Bold" Foreground="#2ECC71" FontSize="11" CharacterSpacing="100" />
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <!-- Glassmorphic Apple Header Overlay (Top) -->
+                                    <Border VerticalAlignment="Top" Margin="12" Padding="10,8,10,8" CornerRadius="6" BorderThickness="1" BorderBrush="#15FFFFFF" Background="#0DFFFFFF">
+                                        <StackPanel Orientation="Vertical" Spacing="1">
+                                            <TextBlock Text="{x:Bind Title, Mode=OneWay}" FontSize="13" FontWeight="Bold" Foreground="White" TextTrimming="CharacterEllipsis" MaxLines="1" />
+                                            <TextBlock Text="{x:Bind DisplayLastPlayedText, Mode=OneWay}" FontSize="10" Foreground="#B3FFFFFF" />
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Playtime Capsule Badge Overlay (Center) -->
+                                    <Border HorizontalAlignment="Center" VerticalAlignment="Center" Padding="10,5,10,5" Background="#66000000" CornerRadius="12">
+                                        <TextBlock Text="{x:Bind DisplayPlayTime, Mode=OneWay}" FontSize="11" FontWeight="Bold" Foreground="White" />
+                                    </Border>
+
+                                    <!-- "NEW TO LIBRARY" Banner (Top Right, shifted below header or overlaid) -->
+                                    <Border Background="#1099f2" CornerRadius="2" Padding="6,2,6,2" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,12,12" Visibility="{x:Bind NewToLibraryVisibility, Mode=OneWay}">
+                                        <TextBlock Text="NEW" FontSize="9" FontWeight="Bold" Foreground="White" CharacterSpacing="50" />
+                                    </Border>
                                 </Grid>
+                            </Border>
 
-                                <!-- Front Cover Insert & Info Inlay -->
-                                <Grid Grid.Column="1">
-                                    <Grid.RowDefinitions>
-                                        <!-- Top PC CD-ROM Banner -->
-                                        <RowDefinition Height="18" />
-                                        <!-- Cover Image -->
-                                        <RowDefinition Height="200" />
-                                        <!-- Info Tray Inlay -->
-                                        <RowDefinition Height="Auto" />
-                                    </Grid.RowDefinitions>
-
-                                    <!-- 1. PC CD-ROM Banner -->
-                                    <Grid Grid.Row="0" Background="White" Padding="4,0,4,0">
-                                        <Grid ColumnDefinitions="*,Auto">
-                                            <TextBlock Grid.Column="0" Text="PC CD-ROM" FontSize="9" FontWeight="Black" Foreground="Black" FontFamily="Impact, sans-serif" VerticalAlignment="Center" CharacterSpacing="50" />
-                                            <FontIcon Grid.Column="1" Glyph="&#xE958;" FontSize="8" Foreground="Black" VerticalAlignment="Center" />
-                                        </Grid>
-                                        <Border BorderThickness="0,0,0,1" BorderBrush="#CCCCCC" />
-                                    </Grid>
-
-                                    <!-- 2. Cover Art with Glossy Shine -->
-                                    <Grid Grid.Row="1" Background="#0C0D11">
-                                        <Image Source="{x:Bind CoverImageSource, Mode=OneWay}" Stretch="UniformToFill" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" />
-
-                                        <!-- Running Overlay -->
-                                        <Grid Background="#DD111827" Visibility="{x:Bind RunningVisibility, Mode=OneWay}">
-                                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="8">
-                                                <ProgressRing IsActive="True" Foreground="#2ECC71" Width="26" Height="26" />
-                                                <TextBlock Text="RUNNING" FontWeight="Bold" Foreground="#2ECC71" FontSize="11" CharacterSpacing="100" />
-                                            </StackPanel>
-                                        </Grid>
-
-                                        <!-- Glossy Plastic/Glass Reflection (Diagonal Sheen) -->
-                                        <Grid IsHitTestVisible="False" Opacity="0.4">
-                                            <Grid.Background>
-                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                                    <GradientStop Color="#00FFFFFF" Offset="0.0" />
-                                                    <GradientStop x:Name="GlossStop1" Color="#00FFFFFF" Offset="0.0" />
-                                                    <GradientStop x:Name="GlossStop2" Color="#4DFFFFFF" Offset="0.05" />
-                                                    <GradientStop x:Name="GlossStop3" Color="#80FFFFFF" Offset="0.1" />
-                                                    <GradientStop Color="#00FFFFFF" Offset="0.25" />
-                                                    <GradientStop Color="#00FFFFFF" Offset="1.0" />
-                                                </LinearGradientBrush>
-                                            </Grid.Background>
-                                        </Grid>
+                            <!-- 3. Steam Hover Details Tooltip Popup -->
+                            <Popup x:Name="HoverPopup" IsLightDismissEnabled="False" IsHitTestVisible="False" ShouldConstrainToRootBounds="False">
+                                <Border Background="#1e2024" BorderBrush="#44FFFFFF" BorderThickness="1" CornerRadius="4" Width="230" Padding="12" Margin="4">
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="{x:Bind Title, Mode=OneWay}" FontWeight="Bold" FontSize="13" Foreground="White" TextTrimming="CharacterEllipsis" MaxLines="2" />
                                         
-                                        <Border BorderThickness="1" BorderBrush="#22FFFFFF" Opacity="0.5" />
-                                    </Grid>
-
-                                    <!-- 3. Tray Inlay / Info Tray -->
-                                    <StackPanel Grid.Row="2" Padding="10,8,10,8" Spacing="4" Background="#171A21">
-                                        <TextBlock Text="{x:Bind Title, Mode=OneWay}" FontWeight="Bold" FontSize="13" Foreground="White" TextTrimming="CharacterEllipsis" MaxLines="1" />
+                                        <!-- Stats -->
+                                        <StackPanel Spacing="3">
+                                            <TextBlock Text="TIME PLAYED" FontSize="9" FontWeight="Black" Foreground="DarkGray" CharacterSpacing="80" />
+                                            <Grid ColumnDefinitions="*,Auto" Margin="0,1,0,0">
+                                                <TextBlock Text="Last two weeks:" FontSize="11" Foreground="LightGray" />
+                                                <TextBlock Grid.Column="1" Text="{x:Bind DisplayRecentPlayTime, Mode=OneWay}" FontSize="11" FontWeight="SemiBold" Foreground="White" />
+                                            </Grid>
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <TextBlock Text="Total:" FontSize="11" Foreground="LightGray" />
+                                                <TextBlock Grid.Column="1" Text="{x:Bind DisplayPlayTime, Mode=OneWay}" FontSize="11" FontWeight="SemiBold" Foreground="#2ECC71" />
+                                            </Grid>
+                                        </StackPanel>
                                         
-                                        <Grid ColumnDefinitions="*,Auto">
-                                            <TextBlock Grid.Column="0" Text="{x:Bind DisplayPlayTime, Mode=OneWay}" FontSize="11" Foreground="DarkGray" />
-                                            <FontIcon Grid.Column="1" Glyph="&#xE768;" FontSize="11" Foreground="LightGray" VerticalAlignment="Center" />
-                                        </Grid>
-
-                                        <ItemsControl ItemsSource="{x:Bind TagList, Mode=OneWay}" Margin="0,2,0,0">
-                                            <ItemsControl.ItemsPanel>
-                                                <ItemsPanelTemplate>
-                                                    <VariableSizedWrapGrid Orientation="Horizontal" MaximumRowsOrColumns="-1" />
-                                                </ItemsPanelTemplate>
-                                            </ItemsControl.ItemsPanel>
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate>
-                                                    <Border Background="#2B303C" CornerRadius="3" Padding="4,1,4,1" Margin="0,0,3,3">
-                                                        <TextBlock Text="{Binding}" FontSize="9" Foreground="#CBD5E0" />
-                                                    </Border>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
+                                        <Border BorderThickness="0,1,0,0" BorderBrush="#22FFFFFF" Margin="0,2,0,0" Padding="0,4,0,0">
+                                            <TextBlock Text="{x:Bind DisplayLastPlayedText, Mode=OneWay}" FontSize="10" Foreground="Gray" />
+                                        </Border>
                                     </StackPanel>
-                                </Grid>
-                            </Grid>
-                        </Border>
-
-                        <!-- Right click Context Menu -->
-                        <Grid.ContextFlyout>
-                            <MenuFlyout>
-                                <MenuFlyoutItem Text="Launch Game" Click="LaunchGame_MenuClick" Icon="Play" />
-                                <MenuFlyoutSeparator />
-                                <MenuFlyoutItem Text="Edit Details" Click="EditGame_MenuClick" Icon="Edit" />
-                                <MenuFlyoutItem Text="Change Cover Art" Click="ChangeCover_MenuClick" Icon="Pictures" />
-                                <MenuFlyoutItem Text="Re-detect Executable" Click="ReDetectExe_MenuClick" Icon="Refresh" />
-                                <MenuFlyoutItem Text="Repair Path" Click="RepairPath_MenuClick" Icon="Repair" />
-                                <MenuFlyoutSeparator />
-                                <MenuFlyoutItem Text="Remove Game" Click="RemoveGame_MenuClick" Icon="Delete" Foreground="Red" />
-                            </MenuFlyout>
-                        </Grid.ContextFlyout>
-                    </Grid>
-                </DataTemplate>
-            </GridView.ItemTemplate>
-        </GridView>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                    </DataTemplate>
+                </GridView.ItemTemplate>
+            </GridView>
+        </Grid>
     </Grid>
 </Page>

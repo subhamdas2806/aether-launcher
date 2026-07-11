@@ -166,11 +166,21 @@ public class LaunchService
         Log($"Session playtime duration: {duration} seconds");
 
         _dbService.UpdatePlayTime(game.Id, game.PlayTimeSeconds + duration);
+        _dbService.InsertPlaySession(game.Id, startTime, (int)duration);
 
         dispatcherQueue.TryEnqueue(() =>
         {
             game.PlayTimeSeconds += duration;
             game.IsRunning = false;
+            game.IsNewToLibrary = false;
+            
+            var lastPlayed = DateTime.UtcNow;
+            game.LastPlayedText = lastPlayed.ToString("MMM d, yyyy");
+            game.DisplayLastPlayedText = $"Last played: {game.LastPlayedText}";
+
+            var recentSeconds = _dbService.GetRecentPlayTimeSeconds(game.Id);
+            game.DisplayRecentPlayTime = Game.FormatPlayTime(recentSeconds);
+
             Log($"Set game.IsRunning to false. Playtime updated in DB to {game.PlayTimeSeconds}s");
 
             onPlayTimeUpdated?.Invoke(game.PlayTimeSeconds);

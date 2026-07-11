@@ -17,6 +17,14 @@ public class Game : INotifyPropertyChanged
     private long _playTimeSeconds;
     private string? _tags;
     private bool _isRunning;
+    private string? _dateAdded;
+    private string? _lastPlayedText;
+    private string? _displayLastPlayedText;
+    private string? _displayRecentPlayTime;
+    private bool _isNewToLibrary;
+    private Windows.UI.Color _dominantColor = Windows.UI.Color.FromArgb(255, 30, 32, 40);
+    private string? _accentColorPrimary;
+    private string? _accentColorSecondary;
 
     public int Id
     {
@@ -95,6 +103,114 @@ public class Game : INotifyPropertyChanged
     public string StatusText => IsRunning ? "Running" : "";
 
     public Microsoft.UI.Xaml.Visibility RunningVisibility => IsRunning ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+
+    public string? DateAdded
+    {
+        get => _dateAdded;
+        set => SetField(ref _dateAdded, value);
+    }
+
+    public string? LastPlayedText
+    {
+        get => _lastPlayedText;
+        set
+        {
+            if (SetField(ref _lastPlayedText, value))
+            {
+                OnPropertyChanged(nameof(LastPlayedVisibility));
+            }
+        }
+    }
+
+    public string? DisplayLastPlayedText
+    {
+        get => _displayLastPlayedText;
+        set => SetField(ref _displayLastPlayedText, value);
+    }
+
+    public string? DisplayRecentPlayTime
+    {
+        get => _displayRecentPlayTime;
+        set => SetField(ref _displayRecentPlayTime, value);
+    }
+
+    public bool IsNewToLibrary
+    {
+        get => _isNewToLibrary;
+        set
+        {
+            if (SetField(ref _isNewToLibrary, value))
+            {
+                OnPropertyChanged(nameof(NewToLibraryVisibility));
+            }
+        }
+    }
+
+    public Windows.UI.Color DominantColor
+    {
+        get => _dominantColor;
+        set
+        {
+            if (SetField(ref _dominantColor, value))
+            {
+                OnPropertyChanged(nameof(AmbientGlowColor));
+            }
+        }
+    }
+
+    public Microsoft.UI.Xaml.Visibility NewToLibraryVisibility => IsNewToLibrary ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+    public Microsoft.UI.Xaml.Visibility LastPlayedVisibility => !string.IsNullOrEmpty(LastPlayedText) ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+    public Windows.UI.Color AmbientGlowColor => Windows.UI.Color.FromArgb(120, DominantColor.R, DominantColor.G, DominantColor.B);
+
+    public string? AccentColorPrimary
+    {
+        get => _accentColorPrimary;
+        set
+        {
+            if (SetField(ref _accentColorPrimary, value))
+            {
+                OnPropertyChanged(nameof(AmbientGlowColorPrimary));
+            }
+        }
+    }
+
+    public string? AccentColorSecondary
+    {
+        get => _accentColorSecondary;
+        set
+        {
+            if (SetField(ref _accentColorSecondary, value))
+            {
+                OnPropertyChanged(nameof(AmbientGlowColorSecondary));
+            }
+        }
+    }
+
+    public Windows.UI.Color AmbientGlowColorPrimary => ColorFromHex(AccentColorPrimary ?? "#FF1b2838");
+    public Windows.UI.Color AmbientGlowColorSecondary => ColorFromHex(AccentColorSecondary ?? "#FF1e222a");
+
+    public static string ColorToHex(Windows.UI.Color color)
+    {
+        return $"#{color.A:X2}{color.R:X2}{color.G:X2}{color.B:X2}";
+    }
+
+    public static Windows.UI.Color ColorFromHex(string hex)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(hex)) return Windows.UI.Color.FromArgb(255, 27, 40, 56);
+            hex = hex.Replace("#", "");
+            byte a = byte.Parse(hex.Substring(0, 2), System.Globalization.NumberStyles.HexNumber);
+            byte r = byte.Parse(hex.Substring(2, 2), System.Globalization.NumberStyles.HexNumber);
+            byte g = byte.Parse(hex.Substring(4, 2), System.Globalization.NumberStyles.HexNumber);
+            byte b = byte.Parse(hex.Substring(6, 2), System.Globalization.NumberStyles.HexNumber);
+            return Windows.UI.Color.FromArgb(a, r, g, b);
+        }
+        catch
+        {
+            return Windows.UI.Color.FromArgb(255, 27, 40, 56);
+        }
+    }
 
     public string DisplayPlayTime => FormatPlayTime(PlayTimeSeconds);
 
