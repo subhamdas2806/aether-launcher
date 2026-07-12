@@ -160,7 +160,18 @@ public class Game : INotifyPropertyChanged
 
     public Microsoft.UI.Xaml.Visibility NewToLibraryVisibility => IsNewToLibrary ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
     public Microsoft.UI.Xaml.Visibility LastPlayedVisibility => !string.IsNullOrEmpty(LastPlayedText) ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
-    public Windows.UI.Color AmbientGlowColor => Windows.UI.Color.FromArgb(120, DominantColor.R, DominantColor.G, DominantColor.B);
+    public Windows.UI.Color AmbientGlowColor
+    {
+        get
+        {
+            // Boost dominant color brightness for a vibrant halo glow
+            double factor = 1.8;
+            byte r = (byte)Math.Clamp(DominantColor.R * factor, 0, 255);
+            byte g = (byte)Math.Clamp(DominantColor.G * factor, 0, 255);
+            byte b = (byte)Math.Clamp(DominantColor.B * factor, 0, 255);
+            return Windows.UI.Color.FromArgb(220, r, g, b); // Bright and beautiful opacity
+        }
+    }
 
     public string? AccentColorPrimary
     {

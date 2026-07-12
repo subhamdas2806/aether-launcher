@@ -25,8 +25,8 @@
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
             
-            <!-- 1. Search Bar -->
-            <TextBox Grid.Row="0" x:Name="SidebarSearchBox" Margin="20,24,20,12" PlaceholderText="Search games..." TextChanged="SidebarSearchBox_TextChanged" Background="#1a2026" Foreground="White" BorderThickness="1" BorderBrush="#22FFFFFF" CornerRadius="8" Height="40" VerticalContentAlignment="Center" Padding="12,0,12,0" />
+            <!-- 1. Search Bar (adjusted top margin for title bar overlay) -->
+            <TextBox Grid.Row="0" x:Name="SidebarSearchBox" Margin="20,56,20,12" PlaceholderText="Search games..." TextChanged="SidebarSearchBox_TextChanged" Background="#1a2026" Foreground="White" BorderThickness="1" BorderBrush="#22FFFFFF" CornerRadius="8" Height="40" VerticalContentAlignment="Center" Padding="12,0,12,0" />
             
             <!-- 2. Add Game Button -->
             <Button Grid.Row="1" Click="AddGame_Click" Margin="20,0,20,20" HorizontalAlignment="Stretch" Height="40" CornerRadius="8" Background="#1a5fb4" BorderThickness="0">
@@ -51,17 +51,15 @@
                     </DataTemplate>
                 </ListView.ItemTemplate>
             </ListView>
+            
+            <!-- Sidebar Dim Overlay Mask -->
+            <Border Grid.Row="0" Grid.RowSpan="3" x:Name="SidebarDimMask" Background="#E6080a0e" Opacity="0.0" IsHitTestVisible="False" Canvas.ZIndex="95" />
         </Grid>
-
-        <!-- Column 1 Viewport -->
-        <Grid Grid.Column="1" Padding="40,32,40,0" Background="#0d0f13">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="*" />
-            </Grid.RowDefinitions>
-
+ 
+        <!-- Column 1 Viewport (edge-to-edge layout) -->
+        <Grid Grid.Column="1" Padding="40,0,40,0" Background="#0d0f13">
             <!-- Shared Ambient Glow Background Layer -->
-            <Grid Grid.Row="0" Grid.RowSpan="2" x:Name="SharedAmbientGlow" IsHitTestVisible="False" Margin="-40" Opacity="0.15">
+            <Grid x:Name="SharedAmbientGlow" IsHitTestVisible="False" Margin="-40" Opacity="0.15">
                 <Grid.Background>
                     <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                         <LinearGradientBrush.GradientStops>
@@ -71,9 +69,12 @@
                     </LinearGradientBrush>
                 </Grid.Background>
             </Grid>
-
-            <!-- Top bar -->
-            <Grid Grid.Row="0" Margin="0,0,0,24" ColumnDefinitions="Auto,*,Auto">
+ 
+            <!-- Dim Overlay -->
+            <Border x:Name="ScreenDimOverlay" Background="#E6080a0e" Opacity="0.0" IsHitTestVisible="False" Canvas.ZIndex="5" Margin="-40" />
+ 
+            <!-- Top bar (Overlaid and fixed at top of Column 1) -->
+            <Grid VerticalAlignment="Top" Margin="0,48,0,0" ColumnDefinitions="Auto,*,Auto" Canvas.ZIndex="10">
                 <!-- Hamburger button (3 lines icon) -->
                 <Button Grid.Column="0" Click="HamburgerButton_Click" Background="Transparent" BorderThickness="0" Padding="8" Margin="0,0,16,0" CornerRadius="4" VerticalAlignment="Center">
                     <FontIcon Glyph="&#xE700;" FontSize="18" Foreground="White" />
@@ -86,21 +87,17 @@
                     </StackPanel>
                 </Button>
             </Grid>
-
-            <!-- Dim Overlay -->
-            <Border Grid.Row="0" Grid.RowSpan="2" x:Name="ScreenDimOverlay" Background="#E6080a0e" Opacity="0.0" IsHitTestVisible="False" Canvas.ZIndex="5" Margin="-40" />
-
-            <!-- 3x2 Centered GridView -->
-            <GridView Grid.Row="1"
-                      x:Name="GamesGrid"
+ 
+            <!-- 3x2 Centered GridView (edge-to-edge scrolling with top padding) -->
+            <GridView x:Name="GamesGrid"
                       ItemsSource="{x:Bind FilteredGames}"
                       IsItemClickEnabled="True"
                       ItemClick="GamesGrid_ItemClick"
                       HorizontalAlignment="Center"
-                      VerticalAlignment="Top"
+                      VerticalAlignment="Stretch"
                       SelectionMode="None"
                       Canvas.ZIndex="6"
-                      Padding="0"
+                      Padding="0,132,0,24"
                       Margin="0"
                       ScrollViewer.VerticalScrollBarVisibility="Hidden"
                       ScrollViewer.HorizontalScrollBarVisibility="Disabled"
@@ -147,8 +144,11 @@
                                 </TransformGroup>
                             </Grid.RenderTransform>
 
-                            <!-- 1. Ambient Haze Glow Border directly behind the card -->
-                            <Border x:Name="AmbientGlowBorder" Margin="-25" CornerRadius="0" Opacity="0.0">
+                            <!-- 1. Ambient Haze Glow Border directly behind the card (RenderTransform avoids layout clipping) -->
+                            <Border x:Name="AmbientGlowBorder" CornerRadius="0" Opacity="0.0" IsHitTestVisible="False">
+                                <Border.RenderTransform>
+                                    <ScaleTransform ScaleX="1.8" ScaleY="1.8" CenterX="120" CenterY="160" />
+                                </Border.RenderTransform>
                                 <Border.Background>
                                     <RadialGradientBrush>
                                         <GradientStop Color="{x:Bind AmbientGlowColor, Mode=OneWay}" Offset="0.0" />
@@ -192,7 +192,6 @@
                                     <Border VerticalAlignment="Top" Margin="12" Padding="10,8,10,8" CornerRadius="6" BorderThickness="1" BorderBrush="#15FFFFFF" Background="#0DFFFFFF">
                                         <StackPanel Orientation="Vertical" Spacing="1">
                                             <TextBlock Text="{x:Bind Title, Mode=OneWay}" FontSize="13" FontWeight="Bold" Foreground="White" TextTrimming="CharacterEllipsis" MaxLines="1" />
-                                            <TextBlock Text="{x:Bind DisplayLastPlayedText, Mode=OneWay}" FontSize="10" Foreground="#B3FFFFFF" />
                                         </StackPanel>
                                     </Border>
 

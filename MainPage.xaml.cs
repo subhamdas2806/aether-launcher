@@ -1359,17 +1359,33 @@ public sealed partial class MainPage : Page
                 AnimateColor(el.BorderBrush, Windows.UI.Color.FromArgb(80, 255, 255, 255), 200);
             }
             
-            // 2. Set Canvas.ZIndex on parent GridViewItem so it draws on top of neighbor cards and dim overlay
-            var container = GamesGrid.ContainerFromItem(cardRoot.Tag) as GridViewItem;
-            if (container != null)
+            // 2. Set Canvas.ZIndex on parent GridViewItem and dim other card containers
+            var hoveredGame = cardRoot.Tag as Game;
+            if (FilteredGames != null)
             {
-                Canvas.SetZIndex(container, 10);
+                foreach (var g in FilteredGames)
+                {
+                    var c = GamesGrid.ContainerFromItem(g) as GridViewItem;
+                    if (c != null)
+                    {
+                        if (g == hoveredGame)
+                        {
+                            Canvas.SetZIndex(c, 10);
+                            AnimateDouble(c, "Opacity", null, 1.0, 200);
+                        }
+                        else
+                        {
+                            Canvas.SetZIndex(c, 0);
+                            AnimateDouble(c, "Opacity", null, 0.3, 200);
+                        }
+                    }
+                }
             }
             
             // 3. Bloom Local Color-Matched Blurred Halo Glow
             if (el.AmbientGlow != null)
             {
-                AnimateDouble(el.AmbientGlow, "Opacity", null, 0.75, 200);
+                AnimateDouble(el.AmbientGlow, "Opacity", null, 1.0, 200);
             }
             
             // 4. Fade in Holographic Iridescent Shimmer
@@ -1391,6 +1407,10 @@ public sealed partial class MainPage : Page
             if (ScreenDimOverlay != null)
             {
                 AnimateDouble(ScreenDimOverlay, "Opacity", null, 0.85, 250);
+            }
+            if (SidebarDimMask != null)
+            {
+                AnimateDouble(SidebarDimMask, "Opacity", null, 0.85, 250);
             }
             
             // 7. Align details popup
@@ -1477,11 +1497,18 @@ public sealed partial class MainPage : Page
                 AnimateColor(el.BorderBrush, Windows.UI.Color.FromArgb(34, 255, 255, 255), 150);
             }
             
-            // 2. Reset Canvas.ZIndex on parent container
-            var container = GamesGrid.ContainerFromItem(cardRoot.Tag) as GridViewItem;
-            if (container != null)
+            // 2. Reset Canvas.ZIndex on parent container and restore opacity of all card containers
+            if (FilteredGames != null)
             {
-                Canvas.SetZIndex(container, 0);
+                foreach (var g in FilteredGames)
+                {
+                    var c = GamesGrid.ContainerFromItem(g) as GridViewItem;
+                    if (c != null)
+                    {
+                        Canvas.SetZIndex(c, 0);
+                        AnimateDouble(c, "Opacity", null, 1.0, 150);
+                    }
+                }
             }
             
             // 3. Fade out Local Ambient Haze Glow
@@ -1508,6 +1535,10 @@ public sealed partial class MainPage : Page
             if (ScreenDimOverlay != null)
             {
                 AnimateDouble(ScreenDimOverlay, "Opacity", null, 0.0, 200);
+            }
+            if (SidebarDimMask != null)
+            {
+                AnimateDouble(SidebarDimMask, "Opacity", null, 0.0, 200);
             }
             
             if (el.HoverPopup != null)
