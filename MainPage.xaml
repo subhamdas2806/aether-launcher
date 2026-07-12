@@ -9,7 +9,7 @@
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}"
     mc:Ignorable="d">
 
-    <Grid Background="#0d0f13">
+    <Grid Background="#2A3446">
         <Grid.ColumnDefinitions>
             <!-- Column 0: Hidden/Hover Sidebar -->
             <ColumnDefinition Width="Auto" />
@@ -57,7 +57,7 @@
         </Grid>
  
         <!-- Column 1 Viewport (edge-to-edge layout) -->
-        <Grid Grid.Column="1" Padding="40,0,40,0" Background="#0d0f13">
+        <Grid Grid.Column="1" Padding="40,0,40,0" Background="#2A3446">
             <!-- Shared Ambient Glow Background Layer -->
             <Grid x:Name="SharedAmbientGlow" IsHitTestVisible="False" Margin="-40" Opacity="0.15">
                 <Grid.Background>
@@ -152,6 +152,22 @@
                                 <Border.Background>
                                     <RadialGradientBrush>
                                         <GradientStop Color="{x:Bind AmbientGlowColor, Mode=OneWay}" Offset="0.0" />
+                                        <GradientStop Color="Transparent" Offset="1.0" />
+                                    </RadialGradientBrush>
+                                </Border.Background>
+                            </Border>
+
+                            <!-- Card Shadow Border (RenderTransform avoids layout clipping) -->
+                            <Border x:Name="CardShadowBorder" Opacity="0.35" IsHitTestVisible="False">
+                                <Border.RenderTransform>
+                                    <TransformGroup>
+                                        <ScaleTransform CenterX="120" CenterY="160" ScaleX="1.3" ScaleY="1.3" />
+                                        <TranslateTransform X="2" Y="8" />
+                                    </TransformGroup>
+                                </Border.RenderTransform>
+                                <Border.Background>
+                                    <RadialGradientBrush>
+                                        <GradientStop Color="#99000000" Offset="0.0" />
                                         <GradientStop Color="Transparent" Offset="1.0" />
                                     </RadialGradientBrush>
                                 </Border.Background>

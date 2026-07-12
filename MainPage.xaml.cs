@@ -1218,6 +1218,9 @@ public sealed partial class MainPage : Page
         public ScaleTransform? Scale;
         public TranslateTransform? Translate;
         public Border? AmbientGlow;
+        public Border? ShadowBorder;
+        public ScaleTransform? ShadowScale;
+        public TranslateTransform? ShadowTranslate;
         public Border? CardBorder;
         public SolidColorBrush? BorderBrush;
         public Border? HolographicShimmer;
@@ -1241,8 +1244,18 @@ public sealed partial class MainPage : Page
         {
             elements.AmbientGlow = glow;
         }
+
+        if (cardRoot.Children.Count > 1 && cardRoot.Children[1] is Border shadow)
+        {
+            elements.ShadowBorder = shadow;
+            if (shadow.RenderTransform is TransformGroup tgShadow)
+            {
+                if (tgShadow.Children.Count > 0) elements.ShadowScale = tgShadow.Children[0] as ScaleTransform;
+                if (tgShadow.Children.Count > 1) elements.ShadowTranslate = tgShadow.Children[1] as TranslateTransform;
+            }
+        }
         
-        if (cardRoot.Children.Count > 1 && cardRoot.Children[1] is Border cardBorder)
+        if (cardRoot.Children.Count > 2 && cardRoot.Children[2] is Border cardBorder)
         {
             elements.CardBorder = cardBorder;
             elements.BorderBrush = cardBorder.BorderBrush as SolidColorBrush;
@@ -1254,7 +1267,7 @@ public sealed partial class MainPage : Page
             }
         }
         
-        if (cardRoot.Children.Count > 2 && cardRoot.Children[2] is Microsoft.UI.Xaml.Controls.Primitives.Popup popup)
+        if (cardRoot.Children.Count > 3 && cardRoot.Children[3] is Microsoft.UI.Xaml.Controls.Primitives.Popup popup)
         {
             elements.HoverPopup = popup;
         }
@@ -1387,6 +1400,22 @@ public sealed partial class MainPage : Page
             {
                 AnimateDouble(el.AmbientGlow, "Opacity", null, 1.0, 200);
             }
+
+            // Shadow reactive animation
+            if (el.ShadowBorder != null)
+            {
+                AnimateDouble(el.ShadowBorder, "Opacity", null, 0.65, 200);
+            }
+            if (el.ShadowScale != null)
+            {
+                AnimateDouble(el.ShadowScale, "ScaleX", null, 1.5, 200);
+                AnimateDouble(el.ShadowScale, "ScaleY", null, 1.5, 200);
+            }
+            if (el.ShadowTranslate != null)
+            {
+                AnimateDouble(el.ShadowTranslate, "X", null, 8, 200);
+                AnimateDouble(el.ShadowTranslate, "Y", null, 20, 200);
+            }
             
             // 4. Fade in Holographic Iridescent Shimmer
             if (el.HolographicShimmer != null)
@@ -1515,6 +1544,22 @@ public sealed partial class MainPage : Page
             if (el.AmbientGlow != null)
             {
                 AnimateDouble(el.AmbientGlow, "Opacity", null, 0.0, 150);
+            }
+
+            // Restore shadow state
+            if (el.ShadowBorder != null)
+            {
+                AnimateDouble(el.ShadowBorder, "Opacity", null, 0.35, 150);
+            }
+            if (el.ShadowScale != null)
+            {
+                AnimateDouble(el.ShadowScale, "ScaleX", null, 1.0, 150);
+                AnimateDouble(el.ShadowScale, "ScaleY", null, 1.0, 150);
+            }
+            if (el.ShadowTranslate != null)
+            {
+                AnimateDouble(el.ShadowTranslate, "X", null, 2, 150);
+                AnimateDouble(el.ShadowTranslate, "Y", null, 8, 150);
             }
             
             // 4. Fade out Holographic Iridescent Shimmer
