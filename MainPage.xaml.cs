@@ -1232,8 +1232,6 @@ public sealed partial class MainPage : Page
     {
         var elements = new CardElements();
         
-        elements.Projection = cardRoot.Projection as PlaneProjection;
-        
         if (cardRoot.RenderTransform is TransformGroup tg)
         {
             if (tg.Children.Count > 0) elements.Scale = tg.Children[0] as ScaleTransform;
@@ -1259,6 +1257,7 @@ public sealed partial class MainPage : Page
         {
             elements.CardBorder = cardBorder;
             elements.BorderBrush = cardBorder.BorderBrush as SolidColorBrush;
+            elements.Projection = cardBorder.Projection as PlaneProjection;
             
             if (cardBorder.Child is Grid cardGrid && cardGrid.Children.Count > 1 && cardGrid.Children[1] is Border shimmer)
             {
@@ -1408,13 +1407,13 @@ public sealed partial class MainPage : Page
             }
             if (el.ShadowScale != null)
             {
-                AnimateDouble(el.ShadowScale, "ScaleX", null, 1.5, 200);
-                AnimateDouble(el.ShadowScale, "ScaleY", null, 1.5, 200);
+                AnimateDouble(el.ShadowScale, "ScaleX", null, 1.15, 200);
+                AnimateDouble(el.ShadowScale, "ScaleY", null, 1.12, 200);
             }
             if (el.ShadowTranslate != null)
             {
-                AnimateDouble(el.ShadowTranslate, "X", null, 8, 200);
-                AnimateDouble(el.ShadowTranslate, "Y", null, 20, 200);
+                AnimateDouble(el.ShadowTranslate, "X", null, 0, 200);
+                AnimateDouble(el.ShadowTranslate, "Y", null, 12, 200);
             }
             
             // 4. Fade in Holographic Iridescent Shimmer
@@ -1484,6 +1483,13 @@ public sealed partial class MainPage : Page
             
             el.Projection.RotationX = rotateX;
             el.Projection.RotationY = rotateY;
+
+            // Reactive Shadow Shift (moves in opposite direction of tilt)
+            if (el.ShadowTranslate != null)
+            {
+                el.ShadowTranslate.X = -rotateY * 1.5;
+                el.ShadowTranslate.Y = 8.0 + (rotateX * 1.5);
+            }
             
             // Holographic shimmer linear gradient shift (enchanted Pokemon card shine)
             if (el.HolographicShimmer != null && el.ShimmerBrush != null)
@@ -1549,17 +1555,17 @@ public sealed partial class MainPage : Page
             // Restore shadow state
             if (el.ShadowBorder != null)
             {
-                AnimateDouble(el.ShadowBorder, "Opacity", null, 0.35, 150);
+                AnimateDouble(el.ShadowBorder, "Opacity", null, 0.45, 150);
             }
             if (el.ShadowScale != null)
             {
-                AnimateDouble(el.ShadowScale, "ScaleX", null, 1.0, 150);
-                AnimateDouble(el.ShadowScale, "ScaleY", null, 1.0, 150);
+                AnimateDouble(el.ShadowScale, "ScaleX", null, 1.08, 150);
+                AnimateDouble(el.ShadowScale, "ScaleY", null, 1.06, 150);
             }
             if (el.ShadowTranslate != null)
             {
-                AnimateDouble(el.ShadowTranslate, "X", null, 2, 150);
-                AnimateDouble(el.ShadowTranslate, "Y", null, 8, 150);
+                AnimateDouble(el.ShadowTranslate, "X", null, 0, 150);
+                AnimateDouble(el.ShadowTranslate, "Y", null, 4, 150);
             }
             
             // 4. Fade out Holographic Iridescent Shimmer
