@@ -1428,7 +1428,7 @@ public sealed partial class MainPage : Page
             {
                 AnimateGlowColor(GlowStopPrimary, game.AmbientGlowColorPrimary, 400);
                 AnimateGlowColor(GlowStopSecondary, game.AmbientGlowColorSecondary, 400);
-                AnimateDouble(SharedAmbientGlow, "Opacity", null, 0.35, 400);
+                AnimateDouble(SharedAmbientGlow, "Opacity", null, 0.55, 400);
             }
             
             // 6. Full-Screen Dim Overlay Fading In

@@ -165,11 +165,37 @@ public class Game : INotifyPropertyChanged
         get
         {
             // Boost dominant color brightness for a vibrant halo glow
-            double factor = 1.8;
+            double factor = 2.5;
             byte r = (byte)Math.Clamp(DominantColor.R * factor, 0, 255);
             byte g = (byte)Math.Clamp(DominantColor.G * factor, 0, 255);
             byte b = (byte)Math.Clamp(DominantColor.B * factor, 0, 255);
-            return Windows.UI.Color.FromArgb(220, r, g, b); // Bright and beautiful opacity
+            return Windows.UI.Color.FromArgb(245, r, g, b); // Extremely strong opacity
+        }
+    }
+
+    public Windows.UI.Color BoostedGlowColorPrimary
+    {
+        get
+        {
+            var baseColor = AmbientGlowColorPrimary;
+            double factor = 2.5;
+            byte r = (byte)Math.Clamp(baseColor.R * factor, 0, 255);
+            byte g = (byte)Math.Clamp(baseColor.G * factor, 0, 255);
+            byte b = (byte)Math.Clamp(baseColor.B * factor, 0, 255);
+            return Windows.UI.Color.FromArgb(245, r, g, b);
+        }
+    }
+
+    public Windows.UI.Color BoostedGlowColorSecondary
+    {
+        get
+        {
+            var baseColor = AmbientGlowColorSecondary;
+            double factor = 2.5;
+            byte r = (byte)Math.Clamp(baseColor.R * factor, 0, 255);
+            byte g = (byte)Math.Clamp(baseColor.G * factor, 0, 255);
+            byte b = (byte)Math.Clamp(baseColor.B * factor, 0, 255);
+            return Windows.UI.Color.FromArgb(245, r, g, b);
         }
     }
 

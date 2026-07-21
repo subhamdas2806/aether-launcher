@@ -144,11 +144,12 @@
                             <!-- 1. Ambient Haze Glow Border directly behind the card (RenderTransform avoids layout clipping) -->
                             <Border x:Name="AmbientGlowBorder" CornerRadius="0" Opacity="0.0" IsHitTestVisible="False">
                                 <Border.RenderTransform>
-                                    <ScaleTransform ScaleX="1.8" ScaleY="1.8" CenterX="120" CenterY="180" />
+                                    <ScaleTransform ScaleX="2.3" ScaleY="2.3" CenterX="120" CenterY="180" />
                                 </Border.RenderTransform>
                                 <Border.Background>
                                     <RadialGradientBrush>
-                                        <GradientStop Color="{x:Bind AmbientGlowColor, Mode=OneWay}" Offset="0.0" />
+                                        <GradientStop Color="{x:Bind BoostedGlowColorPrimary, Mode=OneWay}" Offset="0.0" />
+                                        <GradientStop Color="{x:Bind BoostedGlowColorSecondary, Mode=OneWay}" Offset="0.5" />
                                         <GradientStop Color="Transparent" Offset="1.0" />
                                     </RadialGradientBrush>
                                 </Border.Background>
